@@ -13,22 +13,22 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
 
           case 'heading':
             return (
-              <h2 key={index} className="text-xl font-bold text-white">
+              <h2 key={index} className="text-xl font-bold">
                 {block.text}
               </h2>
             )
 
           case 'paragraph':
             return (
-              <p key={index} className="text-gray-300 text-sm leading-relaxed">
+              <p key={index} className="text-[var(--color-text-muted)] text-sm leading-relaxed">
                 {block.text}
               </p>
             )
 
           case 'code':
             return (
-              <pre key={index} className="bg-gray-800 rounded-lg p-4 overflow-x-auto">
-                <code className="text-sm font-mono text-green-300 whitespace-pre">
+              <pre key={index} className="bg-[var(--color-code-bg)] rounded-lg p-4 overflow-x-auto">
+                <code className="text-sm font-mono text-[var(--color-code-text)] whitespace-pre">
                   {block.text}
                 </code>
               </pre>
@@ -36,8 +36,8 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
 
           case 'callout':
             const styles = {
-              info:    'border-blue-500/40 bg-blue-500/10 text-blue-300',
-              warning: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-300',
+              info: 'border-[var(--color-brand)] bg-[var(--color-code-bg)] text-[var(--color-brand)]',
+              warning: 'border-[var(--color-danger)] bg-[var(--color-danger-bg)] text-[var(--color-danger)]',
             }
             const icons = { info: 'ℹ️', warning: '⚠️' }
             const style = styles[block.style as keyof typeof styles] || styles.info

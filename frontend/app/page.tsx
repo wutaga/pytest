@@ -1,5 +1,5 @@
-import LessonPage from './components/LessonPage'
+import LandingPage from './components/LandingPage'
 
 export default function Home() {
-  return <LessonPage lessonId={1} />
+  return <LandingPage />
 }

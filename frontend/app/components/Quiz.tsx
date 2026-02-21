@@ -22,29 +22,30 @@ export default function Quiz({ exercise }: QuizProps) {
   const isAnswered = selected !== null
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+    <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6">
 
       {/* XP */}
       <div className="flex justify-between items-center mb-4">
-        <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">Quiz</span>
-        <span className="text-xs font-mono text-yellow-500">+{exercise.xp_reward} XP</span>
+        <span className="text-xs font-mono text-[var(--color-text-muted)] uppercase tracking-widest">Quiz</span>
+        <span className="text-xs font-mono text-[var(--color-brand)]">+{exercise.xp_reward} XP</span>
       </div>
 
       {/* Вопрос */}
-      <p className="text-white font-medium mb-4 leading-relaxed">{question}</p>
+      <p className="font-medium mb-4 leading-relaxed">{question}</p>
 
       {/* Варианты */}
       <div className="flex flex-col gap-2">
         {options.map((option) => {
-          let style = 'border-gray-700 text-gray-300 hover:border-blue-500 hover:text-white'
+          let style =
+            'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-brand)] hover:text-[var(--color-text)]'
 
           if (isAnswered) {
             if (option === correct) {
-              style = 'border-green-500 bg-green-500/10 text-green-400'
+              style = 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success)]'
             } else if (option === selected) {
-              style = 'border-red-500 bg-red-500/10 text-red-400'
+              style = 'border-[var(--color-danger)] bg-[var(--color-danger-bg)] text-[var(--color-danger)]'
             } else {
-              style = 'border-gray-800 text-gray-600'
+              style = 'border-[var(--color-border)] text-[var(--color-text-muted)] opacity-60'
             }
           }
 
@@ -65,13 +66,13 @@ export default function Quiz({ exercise }: QuizProps) {
       {isAnswered && (
         <div className={`mt-4 p-4 rounded-lg text-sm ${
           isCorrect
-            ? 'bg-green-500/10 border border-green-500/30 text-green-400'
-            : 'bg-red-500/10 border border-red-500/30 text-red-400'
+            ? 'bg-[var(--color-success-bg)] border border-[var(--color-success)] text-[var(--color-success)]'
+            : 'bg-[var(--color-danger-bg)] border border-[var(--color-danger)] text-[var(--color-danger)]'
         }`}>
           <div className="font-bold mb-1">
             {isCorrect ? '✅ Верно!' : '❌ Не совсем'}
           </div>
-          <div className="text-gray-400 text-xs leading-relaxed">{explanation}</div>
+          <div className="text-[var(--color-text-muted)] text-xs leading-relaxed">{explanation}</div>
         </div>
       )}
 
