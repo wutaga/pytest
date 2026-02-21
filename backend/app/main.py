@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.lessons import router as lessons_router
+from app.api.auth import router as auth_router
 
 app = FastAPI(title="DevDrill API")
 
@@ -12,6 +13,7 @@ app.add_middleware(
 )
 
 app.include_router(lessons_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 @app.get("/health")
 def health():
