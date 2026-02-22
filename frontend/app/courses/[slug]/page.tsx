@@ -15,6 +15,19 @@ type Course = {
   price: number
   modules_count: number
   free_modules_count: number
+  user_has_paid_access: boolean
+  modules: Array<{
+    id: number
+    title: string
+    order_index: number
+    is_free: boolean
+    locked: boolean
+    lessons: Array<{
+      id: number
+      title: string
+      order_index: number
+    }>
+  }>
 }
 
 export default function CoursePage({ params }: { params: { slug: string } }) {
@@ -62,6 +75,41 @@ export default function CoursePage({ params }: { params: { slug: string } }) {
                 <span>Бесплатных модулей: {course.free_modules_count}</span>
                 <span>{course.price > 0 ? `${course.price} ₽` : 'Бесплатный курс'}</span>
               </div>
+              <div className="mb-6 space-y-3">
+                {course.modules.map((module) => (
+                  <div
+                    key={module.id}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4"
+                  >
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="text-lg font-semibold">{module.title}</h2>
+                      <span
+                        className={`rounded-md px-2 py-1 text-xs ${
+                          module.locked
+                            ? 'bg-[var(--color-danger-bg)] text-[var(--color-danger)]'
+                            : 'bg-[var(--color-success-bg)] text-[var(--color-success)]'
+                        }`}
+                      >
+                        {module.locked ? 'Платный модуль' : 'Доступен'}
+                      </span>
+                    </div>
+                    <ul className="space-y-1 text-sm text-[var(--color-text-muted)]">
+                      {module.lessons.map((lesson) => (
+                        <li key={lesson.id} className="flex items-center gap-2">
+                          <span>{module.locked ? '🔒' : '•'}</span>
+                          <span>{lesson.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+
+              {!course.user_has_paid_access && course.price > 0 && (
+                <div className="mb-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-sm text-[var(--color-text-muted)]">
+                  Открыт бесплатный модуль. Для полного доступа оформите подписку или купите курс.
+                </div>
+              )}
               <Link
                 href="/courses"
                 className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold"
@@ -75,4 +123,3 @@ export default function CoursePage({ params }: { params: { slug: string } }) {
     </div>
   )
 }
-
