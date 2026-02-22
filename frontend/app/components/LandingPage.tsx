@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import ThemeToggle from './ThemeToggle'
 
@@ -16,24 +19,212 @@ const features = [
   },
 ]
 
+type ModalType = 'login' | 'register' | null
+
 export default function LandingPage() {
+  const [modal, setModal] = useState<ModalType>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const closeModal = () => {
+    setModal(null)
+    setError('')
+  }
+
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    const form = e.currentTarget
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value
+    const username = (form.elements.namedItem('username') as HTMLInputElement).value
+    const password = (form.elements.namedItem('password') as HTMLInputElement).value
+
+    try {
+      const res = await fetch('http://localhost:8000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.detail || 'Ошибка регистрации')
+        return
+      }
+      // Автологин после регистрации
+      const loginRes = await fetch('http://localhost:8000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const loginData = await loginRes.json()
+      if (loginRes.ok) {
+        localStorage.setItem('access_token', loginData.access_token)
+        closeModal()
+        window.location.href = '/courses'
+      }
+    } catch {
+      setError('Ошибка соединения с сервером')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    const form = e.currentTarget
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value
+    const password = (form.elements.namedItem('password') as HTMLInputElement).value
+
+    try {
+      const res = await fetch('http://localhost:8000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.detail || 'Неверный email или пароль')
+        return
+      }
+      localStorage.setItem('access_token', data.access_token)
+      closeModal()
+      window.location.href = '/courses'
+    } catch {
+      setError('Ошибка соединения с сервером')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+
+      {/* Модальное окно */}
+      {modal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={closeModal}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Хедер модалки */}
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-bold">
+                {modal === 'login' ? 'Вход' : 'Регистрация'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Форма */}
+            {modal === 'register' ? (
+              <form onSubmit={handleRegister} className="flex flex-col gap-3">
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="Email"
+                  required
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+                />
+                <input
+                  name="username"
+                  type="text"
+                  placeholder="Имя пользователя"
+                  required
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+                />
+                <input
+                  name="password"
+                  type="password"
+                  placeholder="Пароль"
+                  required
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+                />
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-1 rounded-lg bg-[var(--color-brand)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {loading ? 'Загрузка...' : 'Зарегистрироваться'}
+                </button>
+                <p className="text-center text-xs text-[var(--color-text-muted)]">
+                  Уже есть аккаунт?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setModal('login'); setError('') }}
+                    className="text-[var(--color-brand)] hover:underline"
+                  >
+                    Войти
+                  </button>
+                </p>
+              </form>
+            ) : (
+              <form onSubmit={handleLogin} className="flex flex-col gap-3">
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="Email"
+                  required
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+                />
+                <input
+                  name="password"
+                  type="password"
+                  placeholder="Пароль"
+                  required
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-brand)]"
+                />
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-1 rounded-lg bg-[var(--color-brand)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {loading ? 'Загрузка...' : 'Войти'}
+                </button>
+                <p className="text-center text-xs text-[var(--color-text-muted)]">
+                  Нет аккаунта?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setModal('register'); setError('') }}
+                    className="text-[var(--color-brand)] hover:underline"
+                  >
+                    Зарегистрироваться
+                  </button>
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Хедер */}
       <header className="border-b border-[var(--color-border)] px-4 py-4 md:px-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <span className="font-mono text-lg font-bold text-[var(--color-brand)]">DevDrill</span>
           <div className="flex items-center gap-2">
-            <Link
-              href="/login"
+            <button
+              onClick={() => setModal('login')}
               className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
             >
               Войти
-            </Link>
+            </button>
             <ThemeToggle />
           </div>
         </div>
       </header>
 
+      {/* Основной контент */}
       <main className="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-16">
         <section className="grid gap-8 md:grid-cols-2 md:items-center">
           <div>
@@ -44,16 +235,15 @@ export default function LandingPage() {
               Прокачивай навыки разработки через практику, а не просмотр видео
             </h1>
             <p className="mb-6 max-w-xl text-[var(--color-text-muted)]">
-              Выбирайте курс, проходите задания по шагам и закрепляйте знания на реальных
-              сценариях.
+              Выбирайте курс, проходите задания по шагам и закрепляйте знания на реальных сценариях.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/register"
+              <button
+                onClick={() => setModal('register')}
                 className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-[var(--color-brand)] px-5 py-2 text-sm font-semibold text-white"
               >
                 Начать бесплатно
-              </Link>
+              </button>
               <Link
                 href="/courses"
                 className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2 text-sm font-semibold text-[var(--color-text)]"
@@ -91,4 +281,3 @@ export default function LandingPage() {
     </div>
   )
 }
-
