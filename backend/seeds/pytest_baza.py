@@ -31,7 +31,7 @@ COURSE_DATA = {
                     "order_index": 0,
                     "xp_reward": 10,
                     "theory": [
-                        {"type": "heading", "text": "Заголовок урока"},
+                        {"type": "heading", "text": "Добро пожаловать в вводный урок по Pytest."},
                         {"type": "paragraph", "text": "Краткое объяснение темы."},
                         {
                             "type": "code",
