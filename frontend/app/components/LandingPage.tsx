@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import AppHeader from './AppHeader'
+import { useAuth } from './AuthProvider'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -24,6 +25,7 @@ const features = [
 type ModalType = 'login' | 'register' | null
 
 export default function LandingPage() {
+  const { refresh } = useAuth()
   const [modal, setModal] = useState<ModalType>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -63,6 +65,7 @@ export default function LandingPage() {
       })
       await loginRes.json()
       if (loginRes.ok) {
+        await refresh()
         closeModal()
         window.location.href = '/courses'
       }
@@ -93,6 +96,7 @@ export default function LandingPage() {
         setError(data.detail || 'Неверный email или пароль')
         return
       }
+      await refresh()
       closeModal()
       window.location.href = '/courses'
     } catch {
