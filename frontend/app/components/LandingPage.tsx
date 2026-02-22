@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import ThemeToggle from './ThemeToggle'
+import AppHeader from './AppHeader'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
 const features = [
   {
@@ -41,8 +43,9 @@ export default function LandingPage() {
     const password = (form.elements.namedItem('password') as HTMLInputElement).value
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/register', {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, username, password }),
       })
@@ -52,14 +55,14 @@ export default function LandingPage() {
         return
       }
       // Автологин после регистрации
-      const loginRes = await fetch('http://localhost:8000/api/auth/login', {
+      const loginRes = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const loginData = await loginRes.json()
+      await loginRes.json()
       if (loginRes.ok) {
-        localStorage.setItem('access_token', loginData.access_token)
         closeModal()
         window.location.href = '/courses'
       }
@@ -79,8 +82,9 @@ export default function LandingPage() {
     const password = (form.elements.namedItem('password') as HTMLInputElement).value
 
     try {
-      const res = await fetch('http://localhost:8000/api/auth/login', {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
@@ -89,7 +93,6 @@ export default function LandingPage() {
         setError(data.detail || 'Неверный email или пароль')
         return
       }
-      localStorage.setItem('access_token', data.access_token)
       closeModal()
       window.location.href = '/courses'
     } catch {
@@ -208,21 +211,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Хедер */}
-      <header className="border-b border-[var(--color-border)] px-4 py-4 md:px-6">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <span className="font-mono text-lg font-bold text-[var(--color-brand)]">DevDrill</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setModal('login')}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-            >
-              Войти
-            </button>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <AppHeader onLoginClick={() => setModal('login')} />
 
       {/* Основной контент */}
       <main className="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-16">
