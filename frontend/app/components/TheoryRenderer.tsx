@@ -3,6 +3,9 @@ interface Block {
   text?: string
   language?: string
   style?: string
+  align?: 'left' | 'center' | 'right'
+  title?: string
+  subtitle?: string
 }
 
 export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
@@ -11,12 +14,16 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
       {blocks.map((block, index) => {
         switch (block.type) {
 
-          case 'heading':
+          case 'heading': {
+            const alignClass =
+              block.align === 'center' ? 'text-center' :
+              block.align === 'right'  ? 'text-right'  : ''
             return (
-              <h2 key={index} className="text-xl font-bold">
+              <h2 key={index} className={`text-xl font-bold ${alignClass}`}>
                 {block.text}
               </h2>
             )
+          }
 
           case 'paragraph':
             return (
@@ -34,19 +41,29 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
               </pre>
             )
 
-          case 'callout':
+          case 'callout': {
             const styles = {
-              info: 'border-[var(--color-brand)] bg-[var(--color-code-bg)] text-[var(--color-brand)]',
+              info:    'border-[var(--color-brand)] bg-[var(--color-code-bg)] text-[var(--color-brand)]',
               warning: 'border-[var(--color-danger)] bg-[var(--color-danger-bg)] text-[var(--color-danger)]',
             }
             const icons = { info: 'ℹ️', warning: '⚠️' }
             const style = styles[block.style as keyof typeof styles] || styles.info
             const icon  = icons[block.style as keyof typeof icons]  || icons.info
-
             return (
               <div key={index} className={`border rounded-lg p-4 text-sm leading-relaxed ${style}`}>
                 <span className="mr-2">{icon}</span>
                 {block.text}
+              </div>
+            )
+          }
+
+          case 'hero':
+            return (
+              <div key={index} className="text-center py-4">
+                <h1 className="text-2xl font-bold mb-2">{block.title}</h1>
+                {block.subtitle && (
+                  <p className="text-[var(--color-text-muted)] text-sm">{block.subtitle}</p>
+                )}
               </div>
             )
 
