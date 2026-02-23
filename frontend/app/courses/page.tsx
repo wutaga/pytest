@@ -39,10 +39,12 @@ export default function CoursesPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <AppHeader />
-      <main className="px-4 py-10 md:py-16">
-        <div className="mx-auto max-w-4xl">
-          <h1 className="mb-2 text-3xl font-bold">Каталог курсов</h1>
-          <p className="mb-8 text-[var(--color-text-muted)]">Выберите курс и начните обучение.</p>
+      <main className="px-4 py-6 md:px-6 md:py-8">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="mb-1 text-2xl font-bold md:text-3xl">Каталог курсов</h1>
+          <p className="mb-6 text-sm text-[var(--color-text-muted)] md:mb-8 md:text-base">
+            Выберите курс и начните обучение.
+          </p>
 
           {loading && (
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]">
@@ -63,30 +65,23 @@ export default function CoursesPage() {
           )}
 
           {!loading && !error && courses.length > 0 && (
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {courses.map((course) => (
-                <article
+                <Link
                   key={course.id}
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  href={`/courses/${course.slug}`}
+                  className="group block rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 transition-colors hover:border-[var(--color-brand)]"
                 >
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-xl font-semibold">{course.title}</h2>
-                    <span className="rounded-md border border-[var(--color-border)] px-2 py-1 text-xs text-[var(--color-text-muted)]">
-                      {course.price > 0 ? `${course.price} ₽` : 'Бесплатно'}
-                    </span>
-                  </div>
-                  <p className="mb-4 text-sm text-[var(--color-text-muted)]">{course.description}</p>
-                  <div className="mb-4 flex flex-wrap gap-2 text-xs text-[var(--color-text-muted)]">
-                    <span>Модулей: {course.modules_count}</span>
-                    <span>Бесплатных: {course.free_modules_count}</span>
-                  </div>
-                  <Link
-                    href={`/courses/${course.slug}`}
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold"
+                  <div
+                    className="h-36 w-full rounded-md bg-[var(--color-code-bg)] bg-cover bg-center md:h-40"
+                    style={{ backgroundImage: `url(/course-covers/${course.slug}.jpg)` }}
                   >
-                    Открыть курс
-                  </Link>
-                </article>
+                    <div className="h-full w-full rounded-md bg-gradient-to-b from-transparent to-black/20 transition-opacity group-hover:opacity-80" />
+                  </div>
+                  <h2 className="mt-3 text-base font-semibold group-hover:text-[var(--color-brand)] md:text-lg">
+                    {course.title}
+                  </h2>
+                </Link>
               ))}
             </div>
           )}

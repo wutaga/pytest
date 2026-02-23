@@ -108,3 +108,61 @@ def get_course(slug: str, request: Request, db: Session = Depends(get_db)):
         "user_has_paid_access": paid_access,
         "modules": modules,
     }
+
+
+@router.get("/{slug}/modules/{module_id}")
+def get_course_module(
+    slug: str,
+    module_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _get_current_user_optional(request, db)
+    course = (
+        db.query(Course)
+        .options(selectinload(Course.modules).selectinload(Module.lessons))
+        .filter(
+            Course.slug == slug,
+            Course.is_published.is_(True),
+            Course.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not course:
+        raise HTTPException(status_code=404, detail="Курс не найден")
+
+    module = next(
+        (m for m in course.modules if m.id == module_id and m.deleted_at is None),
+        None,
+    )
+    if not module:
+        raise HTTPException(status_code=404, detail="Модуль не найден")
+
+    paid_access = _has_paid_access(user, course.id)
+    locked = not module.is_free and not paid_access
+
+    lessons = sorted(
+        (lesson for lesson in module.lessons if lesson.deleted_at is None),
+        key=lambda lesson: lesson.order_index,
+    )
+
+    return {
+        "id": module.id,
+        "title": module.title,
+        "order_index": module.order_index,
+        "is_free": module.is_free,
+        "locked": locked,
+        "course": {
+            "id": course.id,
+            "slug": course.slug,
+            "title": course.title,
+        },
+        "lessons": [
+            {
+                "id": lesson.id,
+                "title": lesson.title,
+                "order_index": lesson.order_index,
+            }
+            for lesson in lessons
+        ],
+    }
