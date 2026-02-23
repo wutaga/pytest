@@ -86,15 +86,16 @@ export default function ModulePage() {
               ) : (
                 <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {moduleData.lessons.map((lesson) => (
-                    <div
+                    <Link
                       key={lesson.id}
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+                      href={`/courses/${moduleData.course.slug}/modules/${moduleData.id}/lessons/${lesson.id}`}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:bg-[var(--color-surface)]/80 hover:border-[var(--color-brand)]"
                     >
                       <h3 className="text-base font-semibold">{lesson.title}</h3>
                       <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        Переход к урокам подключим следующим шагом.
+                        Перейти к уроку
                       </p>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
