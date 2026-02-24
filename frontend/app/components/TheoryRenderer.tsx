@@ -1,5 +1,12 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import TerminalBlock from './TerminalBlock'
+import rehypeRaw from 'rehype-raw'
+import { useTheme } from './ThemeProvider'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus, prism } from 'react-syntax-highlighter/dist/cjs/styles/prism'
+
+
 
 interface Block {
   type: string
@@ -8,12 +15,22 @@ interface Block {
   style?: string
   title?: string
   subtitle?: string
+  src?: string
+  alt?: string
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  lines?: string[]
+  speed?: number
+  icon?: string
+  icon_position?: 'left' | 'right'
+  icon_size?: string
 }
 
 const markdownComponents = {
   p: ({ children }: { children?: React.ReactNode }) => (
-    <p className="text-[var(--color-text-muted)] text-base leading-relaxed">{children}</p>
-  ),
+  <p className="text-[var(--color-text-muted)] text-base leading-relaxed text-justify">
+    {children}
+  </p>
+),
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a
       href={href}
@@ -35,25 +52,56 @@ const markdownComponents = {
       {children}
     </code>
   ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+  <ul className="list-disc list-inside space-y-1 text-[var(--color-text-muted)] text-base">
+    {children}
+  </ul>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="leading-relaxed">{children}</li>
+  ),
 }
 
 export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
+  const { mode } = useTheme()
+  
   return (
     <div className="flex flex-col gap-4">
       {blocks.map((block, index) => {
         switch (block.type) {
 
-          case 'heading':
+          case 'heading': {
+            const sizeMap: Record<string, string> = {
+              '6':  'w-6 h-6',
+              '8':  'w-8 h-8',
+              '10': 'w-10 h-10',
+              '12': 'w-12 h-12',
+              '14': 'w-14 h-14',
+              '16': 'w-16 h-16',
+              '20': 'w-20 h-20',
+              '24': 'w-24 h-24',
+              '30': 'w-30 h-30',
+            }
+            const sizeClass = sizeMap[block.icon_size || '8'] || 'w-8 h-8'
+            const icon = block.icon ? (
+              <img src={block.icon} alt="" className={`${sizeClass} object-contain`} />
+            ) : null
             return (
-              <h2 key={index} className="text-xl font-bold text-center">
+              <h2 key={index} className="text-xl font-bold text-center flex items-center justify-center gap-1">
+                {block.icon_position !== 'right' && icon}
                 {block.text}
+                {block.icon_position === 'right' && icon}
               </h2>
             )
+          }
 
           case 'paragraph':
             return (
               <div key={index}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={markdownComponents}>
                   {block.text || ''}
                 </ReactMarkdown>
               </div>
@@ -61,11 +109,19 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
 
           case 'code':
             return (
-              <pre key={index} className="bg-[var(--color-code-bg)] rounded-lg p-4 overflow-x-auto">
-                <code className="text-sm font-mono text-[var(--color-code-text)] whitespace-pre">
-                  {block.text}
-                </code>
-              </pre>
+              <SyntaxHighlighter
+                key={index}
+                language={block.language || 'python'}
+                style={mode === 'dark' ? vscDarkPlus : prism}
+                customStyle={{
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  margin: 0,
+                  background: 'var(--color-code-bg)',
+                }}
+              >
+                {block.text || ''}
+              </SyntaxHighlighter>
             )
 
           case 'callout': {
@@ -79,7 +135,10 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
             return (
               <div key={index} className={`border rounded-lg p-4 text-sm leading-relaxed ${style}`}>
                 <span className="mr-2">{icon}</span>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={markdownComponents}>
                   {block.text || ''}
                 </ReactMarkdown>
               </div>
@@ -94,6 +153,33 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
                   <p className="text-[var(--color-text-muted)] text-sm">{block.subtitle}</p>
                 )}
               </div>
+            )
+
+          case 'image': {
+            const sizeClass =
+              block.size === 'sm'   ? 'max-w-sm'  :
+              block.size === 'lg'   ? 'max-w-lg'  :
+              block.size === 'xl'   ? 'max-w-xl'  :
+              block.size === 'full' ? 'w-full'    :
+              'max-w-md'
+            return (
+              <div key={index} className={`${sizeClass} mx-auto rounded-lg overflow-hidden`}>
+                <img
+                  src={block.src}
+                  alt={block.alt || ''}
+                  className="w-full h-auto"
+                />
+              </div>
+            )
+          }
+
+          case 'terminal':
+            return (
+              <TerminalBlock
+                key={index}
+                lines={block.lines || []}
+                speed={block.speed}
+              />
             )
 
           default:
