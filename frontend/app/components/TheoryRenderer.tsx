@@ -1,11 +1,40 @@
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
 interface Block {
   type: string
   text?: string
   language?: string
   style?: string
-  align?: 'left' | 'center' | 'right'
   title?: string
   subtitle?: string
+}
+
+const markdownComponents = {
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="text-[var(--color-text-muted)] text-base leading-relaxed">{children}</p>
+  ),
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[var(--color-brand)] underline hover:opacity-80"
+    >
+      {children}
+    </a>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="font-semibold text-[var(--color-text)]">{children}</strong>
+  ),
+  em: ({ children }: { children?: React.ReactNode }) => (
+    <em className="italic text-[var(--color-text-muted)]">{children}</em>
+  ),
+  code: ({ children }: { children?: React.ReactNode }) => (
+    <code className="bg-[var(--color-code-bg)] text-[var(--color-code-text)] font-mono text-sm px-1.5 py-0.5 rounded">
+      {children}
+    </code>
+  ),
 }
 
 export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
@@ -14,22 +43,20 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
       {blocks.map((block, index) => {
         switch (block.type) {
 
-          case 'heading': {
-            const alignClass =
-              block.align === 'center' ? 'text-center' :
-              block.align === 'right'  ? 'text-right'  : ''
+          case 'heading':
             return (
-              <h2 key={index} className={`text-xl font-bold ${alignClass}`}>
+              <h2 key={index} className="text-xl font-bold text-center">
                 {block.text}
               </h2>
             )
-          }
 
           case 'paragraph':
             return (
-              <p key={index} className="text-[var(--color-text-muted)] text-sm leading-relaxed">
-                {block.text}
-              </p>
+              <div key={index}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {block.text || ''}
+                </ReactMarkdown>
+              </div>
             )
 
           case 'code':
@@ -52,7 +79,9 @@ export default function TheoryRenderer({ blocks }: { blocks: Block[] }) {
             return (
               <div key={index} className={`border rounded-lg p-4 text-sm leading-relaxed ${style}`}>
                 <span className="mr-2">{icon}</span>
-                {block.text}
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {block.text || ''}
+                </ReactMarkdown>
               </div>
             )
           }
