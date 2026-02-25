@@ -160,7 +160,7 @@ export default function LessonPage() {
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <AppHeader />
       <main className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto w-full max-w-none">
           {/* Хлебные крошки */}
           <nav className="mb-4 text-sm text-[var(--color-text-muted)]">
             <Link
@@ -187,20 +187,17 @@ export default function LessonPage() {
 
           {/* Контент урока */}
           {lesson.exercises.length > 0 ? (
-            <div className="flex flex-col gap-8 md:flex-row">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
               {/* Левая часть — теория */}
-              <div className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-                <div className="mb-4 text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
+              <div className="min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <div className="mb-4 text-xs font-mono uppercase tracking-widest text-[var(--color-brand)]">
                   Теория
                 </div>
                 <TheoryRenderer blocks={lesson.theory} />
               </div>
 
               {/* Правая часть — задания */}
-              <div className="flex-1 flex flex-col">
-                <div className="mb-4 text-xs font-mono uppercase tracking-widest text-[var(--color-text-muted)]">
-                  Задания
-                </div>
+              <div className="min-w-0 flex flex-col">
                 <div className="flex flex-col gap-4">
                   {lesson.exercises.map((exercise) =>
                     exercise.type === 'quiz' ? (
@@ -208,6 +205,7 @@ export default function LessonPage() {
                     ) : exercise.type === 'code_runner' ? (
                       <CodeRunner
                         key={exercise.id}
+                        exerciseId={exercise.id}
                         task={exercise.content.task || ''}
                         starterCode={exercise.content.starter_code || ''}
                       />

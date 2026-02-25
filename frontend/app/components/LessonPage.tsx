@@ -127,6 +127,7 @@ export default function LessonPage({ lessonId }: { lessonId: number }) {
                 )}
                 {exercise.type === 'code_runner' && (
                   <CodeRunner
+                    exerciseId={exercise.id}
                     task={exercise.content.task || ''}
                     starterCode={exercise.content.starter_code || ''}
                   />
