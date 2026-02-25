@@ -40,7 +40,7 @@ export default function CoursesPage() {
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <AppHeader />
       <main className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto max-w-6xl">
+        <div className="w-full">
           <h1 className="mb-1 text-2xl font-bold md:text-3xl">Каталог курсов</h1>
           <p className="mb-6 text-sm text-[var(--color-text-muted)] md:mb-8 md:text-base">
             Выберите курс и начните обучение.

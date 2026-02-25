@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useAuth } from './AuthProvider'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -38,9 +39,17 @@ async function tryRefreshSession(): Promise<boolean> {
 }
 
 export default function Quiz({ exercise, onCompleted }: QuizProps) {
+  const { refresh } = useAuth()
   const [selected, setSelected] = useState<string | null>(null)
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [loading, setLoading] = useState(false)
+  const [xpToast, setXpToast] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!xpToast) return
+    const timeout = setTimeout(() => setXpToast(null), 1400)
+    return () => clearTimeout(timeout)
+  }, [xpToast])
 
   const { question, options } = exercise.content
   const isAnswered = result !== null
@@ -77,6 +86,10 @@ export default function Quiz({ exercise, onCompleted }: QuizProps) {
         const data: SubmitResult = await res.json()
         setResult(data)
         if (data.correct) onCompleted?.(exercise.id)
+        if (data.xp_earned > 0) {
+          setXpToast(data.xp_earned)
+          void refresh()
+        }
       } else if (res.status === 401) {
         // Не авторизован — проверяем локально без сохранения прогресса
         const correct_answer = exercise.content.correct
@@ -130,7 +143,12 @@ export default function Quiz({ exercise, onCompleted }: QuizProps) {
   }
 
   return (
-    <div className="bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6">
+    <div className="relative bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] p-6">
+      {xpToast ? (
+        <div className="pointer-events-none absolute right-3 top-3 rounded-full border border-[var(--color-success)] bg-[var(--color-success-bg)] px-3 py-1 text-xs font-mono text-[var(--color-success)] animate-bounce">
+          +{xpToast} XP
+        </div>
+      ) : null}
 
       {/* Хедер */}
       <div className="flex justify-between items-center mb-4">
@@ -169,7 +187,7 @@ export default function Quiz({ exercise, onCompleted }: QuizProps) {
           <div className="font-bold mb-1 flex items-center justify-between">
             <span>{result.correct ? '✅ Верно!' : '❌ Не совсем'}</span>
             {result.xp_earned > 0 && (
-              <span className="text-xs font-mono text-[var(--color-brand)]">
+              <span className="text-xs font-mono text-[var(--color-brand)] animate-pulse">
                 +{result.xp_earned} XP
               </span>
             )}

@@ -7,6 +7,7 @@ import Quiz from '../../../../../../components/Quiz';
 import TheoryRenderer from '../../../../../../components/TheoryRenderer';
 import AppHeader from '../../../../../../components/AppHeader';
 import CodeRunner from '../../../../../../components/CodeRunner';
+import { useAuth } from '../../../../../../components/AuthProvider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
@@ -36,6 +37,9 @@ interface Lesson {
   title: string;
   theory: TheoryBlock[];
   exercises: Exercise[];
+  xp_reward: number;
+  lesson_completed?: boolean;
+  xp_earned_on_open?: number;
 }
 
 interface ModuleData {
@@ -53,12 +57,18 @@ interface ModuleData {
   }>;
 }
 
+interface LessonProgress {
+  completed_exercise_ids: number[];
+  lesson_completed: boolean;
+}
+
 export default function LessonPage() {
   const params = useParams<{
     slug: string;
     moduleId: string;
     lessonId: string;
   }>();
+  const { refresh } = useAuth();
   const slug = params?.slug;
   const moduleId = params?.moduleId;
   const lessonId = params?.lessonId ? parseInt(params.lessonId, 10) : null;
@@ -69,6 +79,8 @@ export default function LessonPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
   const [completedExerciseIds, setCompletedExerciseIds] = useState<number[]>([]);
+  const [lessonCompleted, setLessonCompleted] = useState(false);
+  const [theoryXpToast, setTheoryXpToast] = useState<number | null>(null);
 
   useEffect(() => {
     if (!slug || !moduleId || !lessonId) return;
@@ -83,6 +95,9 @@ export default function LessonPage() {
             credentials: 'include',
           }),
         ]);
+        const progressRes = await fetch(`${API_BASE}/api/lessons/${lessonId}/progress`, {
+          credentials: 'include',
+        });
 
         const lessonData = await lessonRes.json();
         if (!lessonRes.ok) {
@@ -95,6 +110,9 @@ export default function LessonPage() {
             moduleResData?.detail || 'Не удалось загрузить модуль',
           );
         }
+        const progressData: LessonProgress | null = progressRes.ok
+          ? ((await progressRes.json()) as LessonProgress)
+          : null;
 
         const normalizedLesson: Lesson = {
           id: lessonData.id,
@@ -103,10 +121,30 @@ export default function LessonPage() {
           exercises: Array.isArray(lessonData.exercises)
             ? lessonData.exercises
             : [],
+          xp_reward:
+            typeof lessonData.xp_reward === 'number' ? lessonData.xp_reward : 0,
+          lesson_completed: Boolean(lessonData.lesson_completed),
+          xp_earned_on_open:
+            typeof lessonData.xp_earned_on_open === 'number'
+              ? lessonData.xp_earned_on_open
+              : 0,
         };
 
         setLesson(normalizedLesson);
         setModuleData(moduleResData as ModuleData);
+        setCompletedExerciseIds(
+          Array.isArray(progressData?.completed_exercise_ids)
+            ? progressData!.completed_exercise_ids
+            : [],
+        );
+        setLessonCompleted(
+          Boolean(progressData?.lesson_completed) ||
+            Boolean(normalizedLesson.lesson_completed),
+        );
+        if ((normalizedLesson.xp_earned_on_open ?? 0) > 0) {
+          setTheoryXpToast(normalizedLesson.xp_earned_on_open ?? 0);
+          void refresh();
+        }
         setError(null);
       } catch (err) {
         setLesson(null);
@@ -117,12 +155,19 @@ export default function LessonPage() {
     };
 
     void fetchLesson();
-  }, [slug, moduleId, lessonId]);
+  }, [slug, moduleId, lessonId, refresh]);
 
   useEffect(() => {
     setActiveExerciseIndex(0);
-    setCompletedExerciseIds([]);
+    setLessonCompleted(false);
+    setTheoryXpToast(null);
   }, [lesson?.id]);
+
+  useEffect(() => {
+    if (!theoryXpToast) return;
+    const timeout = setTimeout(() => setTheoryXpToast(null), 1400);
+    return () => clearTimeout(timeout);
+  }, [theoryXpToast]);
 
   // Навигация между уроками
   const currentLessonIndex =
@@ -305,7 +350,28 @@ export default function LessonPage() {
             </div>
           ) : (
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-              <TheoryRenderer blocks={lesson.theory} />
+              <div className="relative">
+                {theoryXpToast ? (
+                  <div className="pointer-events-none absolute right-0 top-0 z-10 rounded-full border border-[var(--color-success)] bg-[var(--color-success-bg)] px-3 py-1 text-xs font-mono text-[var(--color-success)] animate-bounce">
+                    +{theoryXpToast} XP
+                  </div>
+                ) : null}
+                <TheoryRenderer blocks={lesson.theory} />
+                <div className="mt-6 flex items-center gap-3">
+                  <span
+                    className={`inline-flex min-h-[36px] items-center justify-center rounded-full border px-3 py-1 text-xs font-mono ${
+                      lessonCompleted
+                        ? 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success)]'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]'
+                    }`}
+                  >
+                    {lessonCompleted ? '✓ Урок пройден' : 'Урок не пройден'}
+                  </span>
+                  <span className="text-xs font-mono text-[var(--color-text-muted)]">
+                    XP за урок: +{lesson.xp_reward} (начисляется один раз)
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 

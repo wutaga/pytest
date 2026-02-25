@@ -55,7 +55,7 @@ export default function ModulePage() {
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <AppHeader />
       <main className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto max-w-6xl">
+        <div className="w-full">
           {loading && (
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]">
               Загружаем модуль...

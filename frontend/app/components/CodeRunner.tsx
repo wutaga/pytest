@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useAuth } from './AuthProvider';
 import { useTheme } from './ThemeProvider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -42,16 +43,24 @@ export default function CodeRunner({
   starterCode,
   onCompleted,
 }: CodeRunnerProps) {
+  const { refresh } = useAuth();
   const { mode } = useTheme();
   const [code, setCode] = useState(starterCode);
   const [result, setResult] = useState<RunResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [xpToast, setXpToast] = useState<number | null>(null);
 
   useEffect(() => {
     setCode(starterCode);
     setResult(null);
     setLoading(false);
   }, [exerciseId, starterCode]);
+
+  useEffect(() => {
+    if (!xpToast) return;
+    const timeout = setTimeout(() => setXpToast(null), 1400);
+    return () => clearTimeout(timeout);
+  }, [xpToast]);
 
   useEffect(() => {
     const handler = (e: PromiseRejectionEvent) => {
@@ -165,6 +174,10 @@ export default function CodeRunner({
         xp_earned: typeof data?.xp_earned === 'number' ? data.xp_earned : 0,
       });
       if (Boolean(data?.passed)) onCompleted?.(exerciseId);
+      if (typeof data?.xp_earned === 'number' && data.xp_earned > 0) {
+        setXpToast(data.xp_earned);
+        void refresh();
+      }
     } catch (e) {
       console.error('run-code error:', e);
       setResult({
@@ -189,7 +202,12 @@ export default function CodeRunner({
       : result.display_passed;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] overflow-hidden">
+    <div className="relative flex flex-col gap-3 rounded-xl border border-[var(--color-border)] overflow-hidden">
+      {xpToast ? (
+        <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-full border border-[var(--color-success)] bg-[var(--color-success-bg)] px-3 py-1 text-xs font-mono text-[var(--color-success)] animate-bounce">
+          +{xpToast} XP
+        </div>
+      ) : null}
       {/* Шапка с заданием */}
       <div className="px-4 pt-4 pb-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex items-center gap-2 mb-2">
@@ -283,7 +301,7 @@ export default function CodeRunner({
                   : '❌ FAILED'}
             </span>
             {result.xp_earned && result.xp_earned > 0 ? (
-              <span className="ml-auto text-xs font-mono text-[var(--color-brand)]">
+              <span className="ml-auto text-xs font-mono text-[var(--color-brand)] animate-pulse">
                 +{result.xp_earned} XP
               </span>
             ) : null}
