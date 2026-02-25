@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Quiz from '../../../../../../components/Quiz';
 import TheoryRenderer from '../../../../../../components/TheoryRenderer';
@@ -59,8 +59,6 @@ export default function LessonPage() {
     moduleId: string;
     lessonId: string;
   }>();
-  const router = useRouter();
-
   const slug = params?.slug;
   const moduleId = params?.moduleId;
   const lessonId = params?.lessonId ? parseInt(params.lessonId, 10) : null;
@@ -69,6 +67,8 @@ export default function LessonPage() {
   const [moduleData, setModuleData] = useState<ModuleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
+  const [completedExerciseIds, setCompletedExerciseIds] = useState<number[]>([]);
 
   useEffect(() => {
     if (!slug || !moduleId || !lessonId) return;
@@ -119,6 +119,11 @@ export default function LessonPage() {
     void fetchLesson();
   }, [slug, moduleId, lessonId]);
 
+  useEffect(() => {
+    setActiveExerciseIndex(0);
+    setCompletedExerciseIds([]);
+  }, [lesson?.id]);
+
   // Навигация между уроками
   const currentLessonIndex =
     moduleData?.lessons.findIndex((l) => l.id === lessonId) ?? -1;
@@ -129,6 +134,17 @@ export default function LessonPage() {
     currentLessonIndex < (moduleData?.lessons.length ?? 0) - 1
       ? moduleData?.lessons[currentLessonIndex + 1]
       : null;
+
+  const activeExercise =
+    lesson && lesson.exercises.length > 0
+      ? lesson.exercises[Math.min(activeExerciseIndex, lesson.exercises.length - 1)]
+      : null;
+
+  const handleExerciseCompleted = (exerciseId: number) => {
+    setCompletedExerciseIds((prev) =>
+      prev.includes(exerciseId) ? prev : [...prev, exerciseId],
+    );
+  };
 
   if (loading) {
     return (
@@ -160,7 +176,11 @@ export default function LessonPage() {
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <AppHeader />
       <main className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto w-full max-w-none">
+        <div
+          className={`mx-auto w-full ${
+            lesson.exercises.length > 0 ? 'max-w-none' : 'max-w-6xl'
+          }`}
+        >
           {/* Хлебные крошки */}
           <nav className="mb-4 text-sm text-[var(--color-text-muted)]">
             <Link
@@ -198,27 +218,88 @@ export default function LessonPage() {
 
               {/* Правая часть — задания */}
               <div className="min-w-0 flex flex-col">
-                <div className="flex flex-col gap-4">
-                  {lesson.exercises.map((exercise) =>
-                    exercise.type === 'quiz' ? (
-                      <Quiz key={exercise.id} exercise={exercise} />
-                    ) : exercise.type === 'code_runner' ? (
-                      <CodeRunner
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-xs font-mono uppercase tracking-widest text-[var(--color-brand)]">
+                    Задания
+                  </div>
+                  <div className="text-xs font-mono text-[var(--color-text-muted)]">
+                    {activeExerciseIndex + 1}/{lesson.exercises.length}
+                  </div>
+                </div>
+
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {lesson.exercises.map((exercise, index) => {
+                    const isActive = index === activeExerciseIndex;
+                    const isCompleted = completedExerciseIds.includes(exercise.id);
+                    return (
+                      <button
                         key={exercise.id}
-                        exerciseId={exercise.id}
-                        task={exercise.content.task || ''}
-                        starterCode={exercise.content.starter_code || ''}
+                        onClick={() => setActiveExerciseIndex(index)}
+                        className={`inline-flex min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-mono transition-colors ${
+                          isActive
+                            ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                            : isCompleted
+                              ? 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success)]'
+                              : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                        }`}
+                      >
+                        {index + 1}
+                        {isCompleted ? ' ✓' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {activeExercise ? (
+                    activeExercise.type === 'quiz' ? (
+                      <Quiz
+                        key={activeExercise.id}
+                        exercise={activeExercise}
+                        onCompleted={handleExerciseCompleted}
+                      />
+                    ) : activeExercise.type === 'code_runner' ? (
+                      <CodeRunner
+                        key={activeExercise.id}
+                        exerciseId={activeExercise.id}
+                        task={activeExercise.content.task || ''}
+                        starterCode={activeExercise.content.starter_code || ''}
+                        onCompleted={handleExerciseCompleted}
                       />
                     ) : (
-                      <div
-                        key={exercise.id}
-                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]"
-                      >
-                        Тип задания «{exercise.type}» будет доступен в следующей
-                        версии.
+                      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]">
+                        Тип задания «{activeExercise.type}» будет доступен в
+                        следующей версии.
                       </div>
-                    ),
-                  )}
+                    )
+                  ) : null}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() =>
+                        setActiveExerciseIndex((prev) => Math.max(0, prev - 1))
+                      }
+                      disabled={activeExerciseIndex === 0}
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      ← Предыдущее
+                    </button>
+                    <button
+                      onClick={() =>
+                        setActiveExerciseIndex((prev) =>
+                          Math.min(lesson.exercises.length - 1, prev + 1),
+                        )
+                      }
+                      disabled={activeExerciseIndex >= lesson.exercises.length - 1}
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Следующее →
+                    </button>
+                    <div className="ml-auto text-xs font-mono text-[var(--color-text-muted)]">
+                      Выполнено: {completedExerciseIds.length}/
+                      {lesson.exercises.length}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

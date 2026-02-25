@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
 interface QuizProps {
   exercise: {
     id: number
@@ -13,6 +15,7 @@ interface QuizProps {
     }
     xp_reward: number
   }
+  onCompleted?: (exerciseId: number) => void
 }
 
 interface SubmitResult {
@@ -22,7 +25,19 @@ interface SubmitResult {
   correct_answer: string
 }
 
-export default function Quiz({ exercise }: QuizProps) {
+async function tryRefreshSession(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+export default function Quiz({ exercise, onCompleted }: QuizProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -36,8 +51,8 @@ export default function Quiz({ exercise }: QuizProps) {
     setLoading(true)
 
     try {
-      const res = await fetch(
-        `http://localhost:8000/api/exercises/${exercise.id}/submit`,
+      let res = await fetch(
+        `${API_BASE}/api/exercises/${exercise.id}/submit`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -46,37 +61,56 @@ export default function Quiz({ exercise }: QuizProps) {
         }
       )
 
+      if (res.status === 401) {
+        const refreshed = await tryRefreshSession()
+        if (refreshed) {
+          res = await fetch(`${API_BASE}/api/exercises/${exercise.id}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ answer: option }),
+          })
+        }
+      }
+
       if (res.ok) {
         const data: SubmitResult = await res.json()
         setResult(data)
+        if (data.correct) onCompleted?.(exercise.id)
       } else if (res.status === 401) {
         // Не авторизован — проверяем локально без сохранения прогресса
         const correct_answer = exercise.content.correct
-        setResult({
+        const fallbackResult = {
           correct: option === correct_answer,
           xp_earned: 0,
           explanation: exercise.content.explanation,
           correct_answer,
-        })
+        }
+        setResult(fallbackResult)
+        if (fallbackResult.correct) onCompleted?.(exercise.id)
       } else {
         // Любая другая ошибка — fallback на локальную проверку
         const correct_answer = exercise.content.correct
-        setResult({
+        const fallbackResult = {
           correct: option === correct_answer,
           xp_earned: 0,
           explanation: exercise.content.explanation,
           correct_answer,
-        })
+        }
+        setResult(fallbackResult)
+        if (fallbackResult.correct) onCompleted?.(exercise.id)
       }
     } catch {
       // Нет соединения — fallback на локальную проверку
       const correct_answer = exercise.content.correct
-      setResult({
+      const fallbackResult = {
         correct: option === correct_answer,
         xp_earned: 0,
         explanation: exercise.content.explanation,
         correct_answer,
-      })
+      }
+      setResult(fallbackResult)
+      if (fallbackResult.correct) onCompleted?.(exercise.id)
     } finally {
       setLoading(false)
     }

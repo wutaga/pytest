@@ -8,10 +8,23 @@ import { useTheme } from './ThemeProvider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
+async function tryRefreshSession(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 interface CodeRunnerProps {
   exerciseId: number;
   task: string;
   starterCode: string;
+  onCompleted?: (exerciseId: number) => void;
 }
 
 interface RunResult {
@@ -27,11 +40,18 @@ export default function CodeRunner({
   exerciseId,
   task,
   starterCode,
+  onCompleted,
 }: CodeRunnerProps) {
   const { mode } = useTheme();
   const [code, setCode] = useState(starterCode);
   const [result, setResult] = useState<RunResult | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setCode(starterCode);
+    setResult(null);
+    setLoading(false);
+  }, [exerciseId, starterCode]);
 
   useEffect(() => {
     const handler = (e: PromiseRejectionEvent) => {
@@ -99,12 +119,24 @@ export default function CodeRunner({
     setLoading(true);
     setResult(null);
     try {
-      const res = await fetch(`${API_BASE}/api/run-code`, {
+      let res = await fetch(`${API_BASE}/api/run-code`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, exercise_id: exerciseId }),
       });
+
+      if (res.status === 401) {
+        const refreshed = await tryRefreshSession();
+        if (refreshed) {
+          res = await fetch(`${API_BASE}/api/run-code`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, exercise_id: exerciseId }),
+          });
+        }
+      }
       const data = await res.json();
 
       if (!res.ok) {
@@ -132,6 +164,7 @@ export default function CodeRunner({
             : null,
         xp_earned: typeof data?.xp_earned === 'number' ? data.xp_earned : 0,
       });
+      if (Boolean(data?.passed)) onCompleted?.(exerciseId);
     } catch (e) {
       console.error('run-code error:', e);
       setResult({

@@ -22,16 +22,37 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
+async function tryRefreshSession(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   const refresh = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/auth/me`, {
+      let response = await fetch(`${API_BASE}/api/auth/me`, {
         method: 'GET',
         credentials: 'include',
       })
+      if (response.status === 401) {
+        const refreshed = await tryRefreshSession()
+        if (refreshed) {
+          response = await fetch(`${API_BASE}/api/auth/me`, {
+            method: 'GET',
+            credentials: 'include',
+          })
+        }
+      }
       if (!response.ok) {
         setUser(null)
         return
@@ -80,4 +101,3 @@ export function useAuth() {
   }
   return context
 }
-

@@ -139,15 +139,12 @@ def _apply_code_runner_progress(user_id: int, exercise_id: int, passed: bool) ->
             )
             .first()
         )
-        existing_attempts = progress.attempts if progress else 0
         was_completed = bool(progress and progress.status == "completed")
 
         xp_earned = 0
         if passed:
             if was_completed:
                 xp_earned = 0
-            elif existing_attempts > 0:
-                xp_earned = exercise.xp_reward // 2
             else:
                 xp_earned = exercise.xp_reward
 

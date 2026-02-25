@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -75,7 +76,7 @@ def submit_answer(
     else:
         raise HTTPException(status_code=400, detail=f"Тип {exercise.type} пока не поддерживается")
 
-    # Считаем XP — полный за первую попытку, половина за последующие
+    # XP фиксированный: при первом успешном completed — полный xp_reward, повторно — 0
     progress = db.query(UserProgress).filter(
         UserProgress.user_id == current_user.id,
         UserProgress.exercise_id == exercise_id,
@@ -87,11 +88,8 @@ def submit_answer(
         if progress and progress.status == "completed":
             # Уже выполнено — XP не начисляем повторно
             xp_earned = 0
-        elif progress and progress.attempts > 0:
-            # Не первая попытка — половина XP
-            xp_earned = exercise.xp_reward // 2
         else:
-            # Первая попытка — полный XP
+            # Первое успешное выполнение — полный XP
             xp_earned = exercise.xp_reward
 
     # Обновляем или создаём запись прогресса
@@ -102,7 +100,6 @@ def submit_answer(
             progress.xp_earned = xp_earned
             progress.completed_at = datetime.now(timezone.utc)
     else:
-        from datetime import datetime, timezone
         progress = UserProgress(
             user_id=current_user.id,
             exercise_id=exercise_id,
