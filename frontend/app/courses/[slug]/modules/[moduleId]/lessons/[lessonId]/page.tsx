@@ -1,126 +1,146 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
-import Quiz from '../../../../../../components/Quiz'
-import TheoryRenderer from '../../../../../../components/TheoryRenderer'
-import AppHeader from '../../../../../../components/AppHeader'
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Quiz from '../../../../../../components/Quiz';
+import TheoryRenderer from '../../../../../../components/TheoryRenderer';
+import AppHeader from '../../../../../../components/AppHeader';
+import CodeRunner from '../../../../../../components/CodeRunner';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 
 interface Exercise {
-  id: number
-  type: string
+  id: number;
+  type: string;
   content: {
-    question: string
-    options: string[]
-    correct: string
-    explanation: string
-  }
-  xp_reward: number
+    question: string;
+    options: string[];
+    correct: string;
+    explanation: string;
+    task: string;
+    starter_code: string;
+  };
+  xp_reward: number;
 }
 
 interface TheoryBlock {
-  type: string
-  text?: string
-  language?: string
-  style?: string
+  type: string;
+  text?: string;
+  language?: string;
+  style?: string;
 }
 
 interface Lesson {
-  id: number
-  title: string
-  theory: TheoryBlock[]
-  exercises: Exercise[]
+  id: number;
+  title: string;
+  theory: TheoryBlock[];
+  exercises: Exercise[];
 }
 
 interface ModuleData {
-  id: number
-  title: string
+  id: number;
+  title: string;
   course: {
-    id: number
-    slug: string
-    title: string
-  }
+    id: number;
+    slug: string;
+    title: string;
+  };
   lessons: Array<{
-    id: number
-    title: string
-    order_index: number
-  }>
+    id: number;
+    title: string;
+    order_index: number;
+  }>;
 }
 
 export default function LessonPage() {
-  const params = useParams<{ slug: string; moduleId: string; lessonId: string }>()
-  const router = useRouter()
+  const params = useParams<{
+    slug: string;
+    moduleId: string;
+    lessonId: string;
+  }>();
+  const router = useRouter();
 
-  const slug = params?.slug
-  const moduleId = params?.moduleId
-  const lessonId = params?.lessonId ? parseInt(params.lessonId, 10) : null
+  const slug = params?.slug;
+  const moduleId = params?.moduleId;
+  const lessonId = params?.lessonId ? parseInt(params.lessonId, 10) : null;
 
-  const [lesson, setLesson] = useState<Lesson | null>(null)
-  const [moduleData, setModuleData] = useState<ModuleData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [moduleData, setModuleData] = useState<ModuleData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!slug || !moduleId || !lessonId) return
+    if (!slug || !moduleId || !lessonId) return;
 
     const fetchLesson = async () => {
       try {
         const [lessonRes, moduleRes] = await Promise.all([
-          fetch(`${API_BASE}/api/lessons/${lessonId}`, { credentials: 'include' }),
-          fetch(`${API_BASE}/api/courses/${slug}/modules/${moduleId}`, { credentials: 'include' }),
-        ])
+          fetch(`${API_BASE}/api/lessons/${lessonId}`, {
+            credentials: 'include',
+          }),
+          fetch(`${API_BASE}/api/courses/${slug}/modules/${moduleId}`, {
+            credentials: 'include',
+          }),
+        ]);
 
-        const lessonData = await lessonRes.json()
+        const lessonData = await lessonRes.json();
         if (!lessonRes.ok) {
-          throw new Error(lessonData?.detail || 'Не удалось загрузить урок')
+          throw new Error(lessonData?.detail || 'Не удалось загрузить урок');
         }
 
-        const moduleResData = await moduleRes.json()
+        const moduleResData = await moduleRes.json();
         if (!moduleRes.ok) {
-          throw new Error(moduleResData?.detail || 'Не удалось загрузить модуль')
+          throw new Error(
+            moduleResData?.detail || 'Не удалось загрузить модуль',
+          );
         }
 
         const normalizedLesson: Lesson = {
           id: lessonData.id,
           title: lessonData.title,
           theory: Array.isArray(lessonData.theory) ? lessonData.theory : [],
-          exercises: Array.isArray(lessonData.exercises) ? lessonData.exercises : [],
-        }
+          exercises: Array.isArray(lessonData.exercises)
+            ? lessonData.exercises
+            : [],
+        };
 
-        setLesson(normalizedLesson)
-        setModuleData(moduleResData as ModuleData)
-        setError(null)
+        setLesson(normalizedLesson);
+        setModuleData(moduleResData as ModuleData);
+        setError(null);
       } catch (err) {
-        setLesson(null)
-        setError(err instanceof Error ? err.message : 'Неизвестная ошибка')
+        setLesson(null);
+        setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    void fetchLesson()
-  }, [slug, moduleId, lessonId])
+    void fetchLesson();
+  }, [slug, moduleId, lessonId]);
 
   // Навигация между уроками
-  const currentLessonIndex = moduleData?.lessons.findIndex((l) => l.id === lessonId) ?? -1
-  const prevLesson = currentLessonIndex > 0 ? moduleData?.lessons[currentLessonIndex - 1] : null
+  const currentLessonIndex =
+    moduleData?.lessons.findIndex((l) => l.id === lessonId) ?? -1;
+  const prevLesson =
+    currentLessonIndex > 0 ? moduleData?.lessons[currentLessonIndex - 1] : null;
   const nextLesson =
-    currentLessonIndex >= 0 && currentLessonIndex < (moduleData?.lessons.length ?? 0) - 1
+    currentLessonIndex >= 0 &&
+    currentLessonIndex < (moduleData?.lessons.length ?? 0) - 1
       ? moduleData?.lessons[currentLessonIndex + 1]
-      : null
+      : null;
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
         <AppHeader />
         <main className="flex items-center justify-center px-4 py-6">
-          <div className="text-[var(--color-text-muted)] font-mono">Загрузка урока...</div>
+          <div className="text-[var(--color-text-muted)] font-mono">
+            Загрузка урока...
+          </div>
         </main>
       </div>
-    )
+    );
   }
 
   if (error || !lesson) {
@@ -133,7 +153,7 @@ export default function LessonPage() {
           </div>
         </main>
       </div>
-    )
+    );
   }
 
   return (
@@ -161,7 +181,9 @@ export default function LessonPage() {
           </nav>
 
           {/* Заголовок урока */}
-          <h1 className="mb-6 text-2xl font-bold md:text-3xl">{lesson.title}</h1>
+          <h1 className="mb-6 text-2xl font-bold md:text-3xl">
+            {lesson.title}
+          </h1>
 
           {/* Контент урока */}
           {lesson.exercises.length > 0 ? (
@@ -183,14 +205,21 @@ export default function LessonPage() {
                   {lesson.exercises.map((exercise) =>
                     exercise.type === 'quiz' ? (
                       <Quiz key={exercise.id} exercise={exercise} />
+                    ) : exercise.type === 'code_runner' ? (
+                      <CodeRunner
+                        key={exercise.id}
+                        task={exercise.content.task || ''}
+                        starterCode={exercise.content.starter_code || ''}
+                      />
                     ) : (
                       <div
                         key={exercise.id}
                         className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]"
                       >
-                        Тип задания «{exercise.type}» будет доступен в следующей версии.
+                        Тип задания «{exercise.type}» будет доступен в следующей
+                        версии.
                       </div>
-                    )
+                    ),
                   )}
                 </div>
               </div>
@@ -233,5 +262,5 @@ export default function LessonPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

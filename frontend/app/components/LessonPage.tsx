@@ -4,16 +4,24 @@ import { useEffect, useState } from 'react'
 import Quiz from './Quiz'
 import TheoryRenderer from './TheoryRenderer'
 import ThemeToggle from './ThemeToggle'
+import CodeRunner from './CodeRunner'
+
+interface QuizContent {
+  question: string
+  options: string[]
+  correct: string
+  explanation: string
+}
+
+interface CodeRunnerContent {
+  task: string
+  starter_code: string
+}
 
 interface Exercise {
   id: number
   type: string
-  content: {
-    question: string
-    options: string[]
-    correct: string
-    explanation: string
-  }
+  content: QuizContent & CodeRunnerContent
   xp_reward: number
 }
 
@@ -116,6 +124,12 @@ export default function LessonPage({ lessonId }: { lessonId: number }) {
               <div key={exercise.id}>
                 {exercise.type === 'quiz' && (
                   <Quiz exercise={exercise} />
+                )}
+                {exercise.type === 'code_runner' && (
+                  <CodeRunner
+                    task={exercise.content.task || ''}
+                    starterCode={exercise.content.starter_code || ''}
+                  />
                 )}
               </div>
             ))}
