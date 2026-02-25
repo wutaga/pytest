@@ -12,9 +12,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from app.api.deps import get_current_user
 from app.database import SessionLocal
-from app.models.content import Exercise
+from app.models.content import Exercise, Lesson
 from app.models.gamification import UserProgress
 from app.models.user import User
+from app.services.lesson_progress import complete_lesson_if_eligible
 
 router = APIRouter()
 
@@ -169,6 +170,13 @@ def _apply_code_runner_progress(user_id: int, exercise_id: int, passed: bool) ->
             user = db.query(User).filter(User.id == user_id).first()
             if user:
                 user.xp += xp_earned
+        else:
+            user = db.query(User).filter(User.id == user_id).first()
+
+        if user:
+            lesson = db.query(Lesson).filter(Lesson.id == exercise.lesson_id).first()
+            if lesson:
+                complete_lesson_if_eligible(db, user, lesson)
 
         db.commit()
         return xp_earned

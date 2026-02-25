@@ -8,6 +8,7 @@ from app.core.security import decode_access_token
 from app.database import get_db
 from app.models.content import Course, Module
 from app.models.user import User
+from app.services.lesson_progress import is_lesson_completed_for_user
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 COOKIE_NAME = "access_token"
@@ -97,6 +98,11 @@ def get_course(slug: str, request: Request, db: Session = Depends(get_db)):
                         "id": lesson.id,
                         "title": lesson.title,
                         "order_index": lesson.order_index,
+                        "lesson_completed": (
+                            is_lesson_completed_for_user(db, user.id, lesson.id)
+                            if user
+                            else False
+                        ),
                     }
                     for lesson in lessons
                 ],
@@ -162,6 +168,11 @@ def get_course_module(
                 "id": lesson.id,
                 "title": lesson.title,
                 "order_index": lesson.order_index,
+                "lesson_completed": (
+                    is_lesson_completed_for_user(db, user.id, lesson.id)
+                    if user
+                    else False
+                ),
             }
             for lesson in lessons
         ],

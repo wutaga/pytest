@@ -65,22 +65,19 @@ export default function CoursesPage() {
           )}
 
           {!loading && !error && courses.length > 0 && (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
               {courses.map((course) => (
                 <Link
                   key={course.id}
                   href={`/courses/${course.slug}`}
-                  className="group block rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 transition-colors hover:border-[var(--color-brand)]"
+                  className="group relative block aspect-square w-full max-w-[150px] overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_8px_18px_rgba(0,0,0,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(0,0,0,0.16)]"
                 >
                   <div
-                    className="h-36 w-full rounded-md bg-[var(--color-code-bg)] bg-cover bg-center md:h-40"
+                    className="absolute inset-0 bg-[var(--color-code-bg)] bg-cover bg-center"
                     style={{ backgroundImage: `url(/course-covers/${course.slug}.jpg)` }}
                   >
-                    <div className="h-full w-full rounded-md bg-gradient-to-b from-transparent to-black/20 transition-opacity group-hover:opacity-80" />
+                    <div className="h-full w-full bg-gradient-to-b from-transparent via-black/10 to-black/60 transition-opacity duration-300 group-hover:opacity-90" />
                   </div>
-                  <h2 className="mt-3 text-base font-semibold group-hover:text-[var(--color-brand)] md:text-lg">
-                    {course.title}
-                  </h2>
                 </Link>
               ))}
             </div>

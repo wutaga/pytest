@@ -84,16 +84,21 @@ export default function ModulePage() {
                   </p>
                 </div>
               ) : (
-                <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {moduleData.lessons.map((lesson) => (
                     <Link
                       key={lesson.id}
                       href={`/courses/${moduleData.course.slug}/modules/${moduleData.id}/lessons/${lesson.id}`}
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:bg-[var(--color-surface)]/80 hover:border-[var(--color-brand)]"
+                      className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[0_6px_16px_rgba(0,0,0,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[0_10px_22px_rgba(0,0,0,0.12)]"
                     >
-                      <h3 className="text-base font-semibold">{lesson.title}</h3>
-                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        Перейти к уроку
+                      <div className="mb-2 inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[10px] font-mono text-[var(--color-text-muted)]">
+                        Урок {lesson.order_index + 1}
+                      </div>
+                      <h3 className="line-clamp-2 text-sm font-semibold md:text-[15px]">
+                        {lesson.title}
+                      </h3>
+                      <p className="mt-1 text-[11px] text-[var(--color-text-muted)] group-hover:text-[var(--color-text)]">
+                        Открыть →
                       </p>
                     </Link>
                   ))}

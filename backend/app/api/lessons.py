@@ -4,8 +4,13 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.database import get_db
 from app.models.content import Lesson, Exercise
-from app.models.gamification import Event, UserProgress
+from app.models.gamification import UserProgress
 from app.api.deps import get_current_user, get_optional_user
+from app.services.lesson_progress import (
+    complete_lesson_if_eligible,
+    is_lesson_completed,
+    is_lesson_completed_for_user,
+)
 
 router = APIRouter()
 
@@ -30,26 +35,6 @@ class LessonProgressResponse(BaseModel):
 
 # --- Роуты ---
 
-def _is_lesson_completed(db: Session, user_id: int, lesson_id: int) -> bool:
-    events = (
-        db.query(Event)
-        .filter(
-            Event.user_id == user_id,
-            Event.type.in_(["lesson_completed", "lesson_theory_completed"]),
-        )
-        .all()
-    )
-    for event in events:
-        if not isinstance(event.payload, dict):
-            continue
-        try:
-            event_lesson_id = int(event.payload.get("lesson_id", -1))
-        except (TypeError, ValueError):
-            event_lesson_id = -1
-        if event_lesson_id == lesson_id:
-            return True
-    return False
-
 @router.get("/lessons/{lesson_id}")
 def get_lesson(
     lesson_id: int,
@@ -63,19 +48,16 @@ def get_lesson(
     lesson_completed = False
     xp_earned_on_open = 0
     if current_user:
-        lesson_completed = _is_lesson_completed(db, current_user.id, lesson_id)
+        lesson_completed = is_lesson_completed_for_user(db, current_user.id, lesson_id)
         if not lesson_completed:
-            db.add(
-                Event(
-                    user_id=current_user.id,
-                    type="lesson_completed",
-                    payload={"lesson_id": lesson_id},
-                )
+            # Теория (без заданий) завершается на открытии.
+            # Для практики это станет true только когда все задания completed.
+            xp_earned_on_open = complete_lesson_if_eligible(db, current_user, lesson)
+            lesson_completed = xp_earned_on_open > 0 or is_lesson_completed_for_user(
+                db, current_user.id, lesson_id
             )
-            current_user.xp += lesson.xp_reward
-            xp_earned_on_open = lesson.xp_reward
-            lesson_completed = True
-            db.commit()
+            if xp_earned_on_open > 0:
+                db.commit()
 
     return {
         "id": lesson.id,
@@ -113,7 +95,9 @@ def get_lesson_progress(
     if not lesson_exercise_ids:
         return LessonProgressResponse(
             completed_exercise_ids=[],
-            lesson_completed=_is_lesson_completed(db, current_user.id, lesson_id),
+            lesson_completed=is_lesson_completed_for_user(
+                db, current_user.id, lesson_id
+            ),
         )
 
     rows = (
@@ -127,7 +111,7 @@ def get_lesson_progress(
     )
     return LessonProgressResponse(
         completed_exercise_ids=[int(row[0]) for row in rows if row[0] is not None],
-        lesson_completed=_is_lesson_completed(db, current_user.id, lesson_id),
+        lesson_completed=is_lesson_completed_for_user(db, current_user.id, lesson_id),
     )
 
 
@@ -198,6 +182,10 @@ def submit_answer(
     # Начисляем XP пользователю
     if xp_earned > 0:
         current_user.xp += xp_earned
+
+    lesson = db.query(Lesson).filter(Lesson.id == exercise.lesson_id).first()
+    if lesson:
+        complete_lesson_if_eligible(db, current_user, lesson)
 
     db.commit()
 

@@ -27,6 +27,7 @@ type Course = {
       id: number
       title: string
       order_index: number
+      lesson_completed: boolean
     }>
   }>
 }
@@ -77,34 +78,49 @@ export default function CoursePage() {
               <p className="mb-6 text-sm text-[var(--color-text-muted)] md:mb-8 md:text-base">
                 {course.description}
               </p>
-              <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {course.modules.map((module) => (
+              <div className="mb-6 grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3">
+                {course.modules.map((module) => {
+                  const completedLessons = module.lessons.filter(
+                    (lesson) => lesson.lesson_completed,
+                  ).length
+                  return (
                   <Link
                     key={module.id}
                     href={`/courses/${course.slug}/modules/${module.id}`}
-                    className={`group rounded-lg border p-3 ${
+                    className={`group relative block aspect-square w-full overflow-hidden rounded-2xl border p-2.5 shadow-[0_8px_20px_rgba(0,0,0,0.10)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(0,0,0,0.14)] ${
                       module.locked
-                        ? 'border-[var(--color-border)] bg-[var(--color-bg)] opacity-90'
-                        : 'border-[var(--color-border)] bg-[var(--color-bg)]'
+                        ? 'border-[var(--color-border)] bg-[var(--color-surface)] opacity-90'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface)]'
                     }`}
                   >
                     <div
-                      className={`relative h-28 w-full rounded-md ${
+                      className={`relative h-full w-full rounded-xl bg-cover bg-center ${
                         module.locked ? 'bg-[var(--color-border)]' : 'bg-[var(--color-code-bg)]'
                       }`}
+                      style={{
+                        backgroundImage: `url(/module-covers/${course.slug}/${module.order_index + 1}.jpg)`,
+                      }}
                     >
+                      <div className="absolute left-2.5 top-2.5 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-mono text-white">
+                        M{module.order_index + 1}
+                      </div>
                       {module.locked && (
-                        <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/35 text-3xl">
+                        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/35 text-3xl">
                           🔒
                         </div>
                       )}
+                      <div className="absolute inset-x-2 bottom-2 rounded-lg border border-black/10 bg-white/88 p-2 backdrop-blur-[1px]">
+                        <h2 className="line-clamp-2 text-xs font-semibold text-black md:text-sm">
+                          {module.title}
+                        </h2>
+                        <p className="mt-0.5 text-[10px] text-black/75">
+                          Уроков {completedLessons}/{module.lessons.length}
+                        </p>
+                      </div>
                     </div>
-                    <h2 className="mt-3 text-base font-semibold md:text-lg">{module.title}</h2>
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                      Уроков: {module.lessons.length}
-                    </p>
                   </Link>
-                ))}
+                  )
+                })}
               </div>
               <Link
                 href="/courses"
