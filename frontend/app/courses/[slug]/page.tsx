@@ -101,19 +101,16 @@ export default function CoursePage() {
                         backgroundImage: `url(/module-covers/${course.slug}/${module.order_index + 1}.jpg)`,
                       }}
                     >
-                      <div className="absolute left-2.5 top-2.5 rounded-full bg-black/45 px-2 py-0.5 text-[10px] font-mono text-white">
-                        M{module.order_index + 1}
-                      </div>
                       {module.locked && (
                         <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/35 text-3xl">
                           🔒
                         </div>
                       )}
-                      <div className="absolute inset-x-2 bottom-2 rounded-lg border border-black/10 bg-white/88 p-2 backdrop-blur-[1px]">
-                        <h2 className="line-clamp-2 text-xs font-semibold text-black md:text-sm">
+                      <div className="absolute inset-x-3 top-3 rounded-lg bg-black/25 p-2 backdrop-blur-[1px]">
+                        <h2 className="line-clamp-2 text-sm font-semibold text-white md:text-base">
                           {module.title}
                         </h2>
-                        <p className="mt-0.5 text-[10px] text-black/75">
+                        <p className="mt-1 text-xs text-white/90">
                           Уроков {completedLessons}/{module.lessons.length}
                         </p>
                       </div>

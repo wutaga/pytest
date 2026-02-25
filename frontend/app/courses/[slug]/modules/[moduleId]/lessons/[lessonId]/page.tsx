@@ -79,7 +79,6 @@ export default function LessonPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
   const [completedExerciseIds, setCompletedExerciseIds] = useState<number[]>([]);
-  const [lessonCompleted, setLessonCompleted] = useState(false);
   const [theoryXpToast, setTheoryXpToast] = useState<number | null>(null);
 
   useEffect(() => {
@@ -137,10 +136,6 @@ export default function LessonPage() {
             ? progressData!.completed_exercise_ids
             : [],
         );
-        setLessonCompleted(
-          Boolean(progressData?.lesson_completed) ||
-            Boolean(normalizedLesson.lesson_completed),
-        );
         if ((normalizedLesson.xp_earned_on_open ?? 0) > 0) {
           setTheoryXpToast(normalizedLesson.xp_earned_on_open ?? 0);
           void refresh();
@@ -159,7 +154,6 @@ export default function LessonPage() {
 
   useEffect(() => {
     setActiveExerciseIndex(0);
-    setLessonCompleted(false);
     setTheoryXpToast(null);
   }, [lesson?.id]);
 
@@ -272,7 +266,7 @@ export default function LessonPage() {
                   </div>
                 </div>
 
-                <div className="mb-4 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
                   {lesson.exercises.map((exercise, index) => {
                     const isActive = index === activeExerciseIndex;
                     const isCompleted = completedExerciseIds.includes(exercise.id);
@@ -280,16 +274,20 @@ export default function LessonPage() {
                       <button
                         key={exercise.id}
                         onClick={() => setActiveExerciseIndex(index)}
-                        className={`inline-flex min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-mono transition-colors ${
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-mono font-semibold transition-all ${
                           isActive
-                            ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                            ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)]'
                             : isCompleted
                               ? 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success)]'
-                              : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                              : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:border-[var(--color-brand)] hover:text-[var(--color-text)]'
                         }`}
+                        title={
+                          isCompleted
+                            ? `Задание ${index + 1} (выполнено)`
+                            : `Задание ${index + 1}`
+                        }
                       >
                         {index + 1}
-                        {isCompleted ? ' ✓' : ''}
                       </button>
                     );
                   })}
@@ -305,7 +303,6 @@ export default function LessonPage() {
                       />
                     ) : activeExercise.type === 'code_runner' ? (
                       <CodeRunner
-                        key={activeExercise.id}
                         exerciseId={activeExercise.id}
                         task={activeExercise.content.task || ''}
                         starterCode={activeExercise.content.starter_code || ''}
@@ -357,20 +354,6 @@ export default function LessonPage() {
                   </div>
                 ) : null}
                 <TheoryRenderer blocks={lesson.theory} />
-                <div className="mt-6 flex items-center gap-3">
-                  <span
-                    className={`inline-flex min-h-[36px] items-center justify-center rounded-full border px-3 py-1 text-xs font-mono ${
-                      lessonCompleted
-                        ? 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success)]'
-                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]'
-                    }`}
-                  >
-                    {lessonCompleted ? '✓ Урок пройден' : 'Урок не пройден'}
-                  </span>
-                  <span className="text-xs font-mono text-[var(--color-text-muted)]">
-                    XP за урок: +{lesson.xp_reward} (начисляется один раз)
-                  </span>
-                </div>
               </div>
             </div>
           )}

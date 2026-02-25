@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -49,11 +49,36 @@ export default function CodeRunner({
   const [result, setResult] = useState<RunResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [xpToast, setXpToast] = useState<number | null>(null);
+  const cacheRef = useRef<Record<number, { code: string; result: RunResult | null }>>({});
+  const codeRef = useRef(code);
+  const resultRef = useRef(result);
+  const prevExerciseIdRef = useRef<number>(exerciseId);
 
   useEffect(() => {
-    setCode(starterCode);
-    setResult(null);
+    codeRef.current = code;
+  }, [code]);
+
+  useEffect(() => {
+    resultRef.current = result;
+  }, [result]);
+
+  useEffect(() => {
+    const prevExerciseId = prevExerciseIdRef.current;
+    cacheRef.current[prevExerciseId] = {
+      code: codeRef.current,
+      result: resultRef.current,
+    };
+
+    const cached = cacheRef.current[exerciseId];
+    if (cached) {
+      setCode(cached.code);
+      setResult(cached.result);
+    } else {
+      setCode(starterCode);
+      setResult(null);
+    }
     setLoading(false);
+    prevExerciseIdRef.current = exerciseId;
   }, [exerciseId, starterCode]);
 
   useEffect(() => {
@@ -269,17 +294,26 @@ export default function CodeRunner({
       </div>
 
       {/* Кнопка запуска */}
-      <div className="px-4 pb-3 bg-[var(--color-surface)]">
+      <div className="flex justify-end px-4 pb-4 pt-4 bg-[var(--color-surface)]">
         <button
           onClick={handleRun}
           disabled={loading}
-          className={`w-full rounded-lg py-2.5 font-mono text-sm font-semibold transition-all ${
+          className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border px-3 py-2 font-mono text-sm font-semibold transition-all ${
             loading
-              ? 'bg-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed'
-              : 'bg-[var(--color-brand)] text-white hover:opacity-90'
+              ? 'border-[var(--color-border)] bg-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed'
+              : 'border-[var(--color-brand)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_8px_18px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 hover:border-[var(--color-brand)]'
           }`}
         >
-          {loading ? '⟳ Запускаем pytest...' : '▶ Запустить'}
+          <span
+            className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] ${
+              loading
+                ? 'bg-[var(--color-surface)] text-[var(--color-text-muted)]'
+                : 'bg-[var(--color-brand)] text-white'
+            }`}
+          >
+            ▶
+          </span>
+          <span>{loading ? 'Запускаем pytest...' : 'Запустить'}</span>
         </button>
       </div>
 

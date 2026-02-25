@@ -23,6 +23,7 @@ type ModulePayload = {
     id: number
     title: string
     order_index: number
+    lesson_completed: boolean
   }>
 }
 
@@ -84,22 +85,30 @@ export default function ModulePage() {
                   </p>
                 </div>
               ) : (
-                <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                <div className="mb-6 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
                   {moduleData.lessons.map((lesson) => (
                     <Link
                       key={lesson.id}
                       href={`/courses/${moduleData.course.slug}/modules/${moduleData.id}/lessons/${lesson.id}`}
                       className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[0_6px_16px_rgba(0,0,0,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[0_10px_22px_rgba(0,0,0,0.12)]"
                     >
-                      <div className="mb-2 inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[10px] font-mono text-[var(--color-text-muted)]">
-                        Урок {lesson.order_index + 1}
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[10px] font-mono text-[var(--color-text-muted)]">
+                          Урок {lesson.order_index + 1}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                            lesson.lesson_completed
+                              ? 'bg-emerald-500/15 text-emerald-600'
+                              : 'bg-[var(--color-bg)] text-[var(--color-text-muted)]'
+                          }`}
+                        >
+                          {lesson.lesson_completed ? 'Пройден' : 'Не пройден'}
+                        </span>
                       </div>
-                      <h3 className="line-clamp-2 text-sm font-semibold md:text-[15px]">
+                      <h3 className="line-clamp-2 min-h-[40px] text-sm font-semibold md:text-[15px]">
                         {lesson.title}
                       </h3>
-                      <p className="mt-1 text-[11px] text-[var(--color-text-muted)] group-hover:text-[var(--color-text)]">
-                        Открыть →
-                      </p>
                     </Link>
                   ))}
                 </div>
