@@ -18,7 +18,7 @@ router = APIRouter()
 # --- Схемы ---
 
 class SubmitAnswer(BaseModel):
-    answer: str  # для quiz — выбранный вариант, для gap_fill — введённый текст
+    answer: str  # для quiz — выбранный вариант, для gap_fill/terminal_command — введённый текст
 
     @field_validator("answer")
     @classmethod
@@ -150,7 +150,7 @@ def submit_answer(
         explanation = exercise.content.get("explanation", "")
         correct = payload.answer.strip() == correct_answer.strip()
 
-    elif exercise.type == "gap_fill":
+    elif exercise.type in {"gap_fill", "terminal_command"}:
         answer_value = exercise.content.get("answer", "")
         explanation = exercise.content.get("hint", "")
         user_answer = payload.answer.strip().lower()
