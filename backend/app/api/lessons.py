@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from app.database import get_db
 from app.models.content import Lesson, Exercise
 from app.models.gamification import UserProgress
@@ -19,6 +19,16 @@ router = APIRouter()
 
 class SubmitAnswer(BaseModel):
     answer: str  # для quiz — выбранный вариант, для gap_fill — введённый текст
+
+    @field_validator("answer")
+    @classmethod
+    def validate_answer(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) > 300:
+            raise ValueError("Ответ слишком длинный")
+        if any(ord(ch) < 32 and ch not in ("\t", "\n", "\r") for ch in cleaned):
+            raise ValueError("Ответ содержит недопустимые символы")
+        return cleaned
 
 
 class SubmitResult(BaseModel):
@@ -73,7 +83,10 @@ def get_lesson(
                 "content": ex.content,
                 "xp_reward": ex.xp_reward,
             }
-            for ex in lesson.exercises
+            for ex in sorted(
+                lesson.exercises,
+                key=lambda ex: (ex.order_index, ex.id),
+            )
         ],
     }
 
@@ -138,9 +151,18 @@ def submit_answer(
         correct = payload.answer.strip() == correct_answer.strip()
 
     elif exercise.type == "gap_fill":
-        correct_answer = exercise.content.get("answer", "")
+        answer_value = exercise.content.get("answer", "")
         explanation = exercise.content.get("hint", "")
-        correct = payload.answer.strip().lower() == correct_answer.strip().lower()
+        user_answer = payload.answer.strip().lower()
+        if isinstance(answer_value, list):
+            normalized_answers = [
+                str(item).strip().lower() for item in answer_value if str(item).strip()
+            ]
+            correct_answer = normalized_answers[0] if normalized_answers else ""
+            correct = user_answer in normalized_answers
+        else:
+            correct_answer = str(answer_value)
+            correct = user_answer == correct_answer.strip().lower()
 
     else:
         raise HTTPException(status_code=400, detail=f"Тип {exercise.type} пока не поддерживается")

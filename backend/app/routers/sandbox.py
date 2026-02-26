@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from app.api.deps import get_current_user
 from app.database import SessionLocal
 from app.models.content import Exercise, Lesson
@@ -24,6 +24,15 @@ class RunCodeRequest(BaseModel):
     code: str
     exercise_id: int | None = None
 
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, value: str) -> str:
+        if len(value) > MAX_CODE_CHARS:
+            raise ValueError(
+                f"Код слишком длинный. Максимум {MAX_CODE_CHARS} символов."
+            )
+        return value
+
 
 class RunCodeResponse(BaseModel):
     stdout: str
@@ -37,6 +46,7 @@ class RunCodeResponse(BaseModel):
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 GRADER_SUITES_ROOT = BACKEND_ROOT / "grader_suites"
 MAX_OUTPUT_CHARS = 20_000
+MAX_CODE_CHARS = 20_000
 RUN_CODE_RATE_LIMIT = 20
 RUN_CODE_WINDOW_SECONDS = 60
 
