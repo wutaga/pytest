@@ -10,6 +10,7 @@ import CodeRunner from '../../../../../../components/CodeRunner';
 import { useAuth } from '../../../../../../components/AuthProvider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+const ACTIVE_EXERCISE_KEY_PREFIX = 'devdrill:lesson:active-exercise:';
 
 interface Exercise {
   id: number;
@@ -153,9 +154,28 @@ export default function LessonPage() {
   }, [slug, moduleId, lessonId, refresh]);
 
   useEffect(() => {
-    setActiveExerciseIndex(0);
+    if (!lesson?.id) {
+      setActiveExerciseIndex(0);
+      return;
+    }
+    const storageKey = `${ACTIVE_EXERCISE_KEY_PREFIX}${lesson.id}`;
+    const raw =
+      typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) : null;
+    const parsed = raw ? Number.parseInt(raw, 10) : 0;
+    const maxIndex = Math.max(0, lesson.exercises.length - 1);
+    const safeIndex =
+      Number.isFinite(parsed) && parsed >= 0 ? Math.min(parsed, maxIndex) : 0;
+    setActiveExerciseIndex(safeIndex);
     setTheoryXpToast(null);
-  }, [lesson?.id]);
+  }, [lesson?.id, lesson?.exercises.length]);
+
+  useEffect(() => {
+    if (!lesson?.id || typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      `${ACTIVE_EXERCISE_KEY_PREFIX}${lesson.id}`,
+      String(activeExerciseIndex),
+    );
+  }, [lesson?.id, activeExerciseIndex]);
 
   useEffect(() => {
     if (!theoryXpToast) return;
@@ -274,9 +294,11 @@ export default function LessonPage() {
                       <button
                         key={exercise.id}
                         onClick={() => setActiveExerciseIndex(index)}
-                        className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-mono font-semibold transition-all ${
+                        className={`relative inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-mono font-semibold transition-all ${
                           isActive
-                            ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)]'
+                            ? isCompleted
+                              ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] ring-2 ring-emerald-400/80 ring-offset-1 ring-offset-[var(--color-surface)]'
+                              : 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)]'
                             : isCompleted
                               ? 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success)]'
                               : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:border-[var(--color-brand)] hover:text-[var(--color-text)]'
@@ -288,6 +310,11 @@ export default function LessonPage() {
                         }
                       >
                         {index + 1}
+                        {isCompleted ? (
+                          <span className="absolute -right-1 -top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] leading-none text-white">
+                            ✓
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}

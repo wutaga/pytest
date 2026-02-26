@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Editor from '@monaco-editor/react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import Editor, { loader } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from './AuthProvider';
 import { useTheme } from './ThemeProvider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+const CODE_DRAFT_KEY_PREFIX = 'devdrill:code-runner:draft:';
+
+// Используем локальный Monaco из /public, чтобы не зависеть от CDN.
+loader.config({ paths: { vs: '/monaco/vs' } });
 
 async function tryRefreshSession(): Promise<boolean> {
   try {
@@ -53,6 +57,35 @@ export default function CodeRunner({
   const codeRef = useRef(code);
   const resultRef = useRef(result);
   const prevExerciseIdRef = useRef<number>(exerciseId);
+  const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      const text = args
+        .map((arg) => {
+          if (typeof arg === 'string') return arg;
+          if (arg instanceof Error) return arg.message;
+          try {
+            return JSON.stringify(arg);
+          } catch {
+            return String(arg);
+          }
+        })
+        .join(' ');
+
+      // Monaco в dev-режиме часто логирует отменённые операции как ERR Canceled.
+      // Для UX это шум: подавляем только этот конкретный кейс.
+      if (text.includes('ERR Canceled: Canceled') || text.includes('Canceled: Canceled')) {
+        return;
+      }
+      originalConsoleError(...args);
+    };
+    return () => {
+      console.error = originalConsoleError;
+    };
+  }, []);
 
   useEffect(() => {
     codeRef.current = code;
@@ -62,15 +95,43 @@ export default function CodeRunner({
     resultRef.current = result;
   }, [result]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const prevExerciseId = prevExerciseIdRef.current;
+    const shouldPersistPrevious = hasMountedRef.current && prevExerciseId !== exerciseId;
+    if (typeof window !== 'undefined' && shouldPersistPrevious) {
+      // TEMP DEBUG: отслеживаем, что сохраняем перед переключением упражнения.
+      console.log('[CodeRunner:draft] save-on-switch', {
+        prevExerciseId,
+        key: `${CODE_DRAFT_KEY_PREFIX}${prevExerciseId}`,
+        length: codeRef.current.length,
+      });
+      window.localStorage.setItem(
+        `${CODE_DRAFT_KEY_PREFIX}${prevExerciseId}`,
+        codeRef.current,
+      );
+    }
     cacheRef.current[prevExerciseId] = {
       code: codeRef.current,
       result: resultRef.current,
     };
 
+    const storageKey = `${CODE_DRAFT_KEY_PREFIX}${exerciseId}`;
+    const storedDraft =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem(storageKey)
+        : null;
+    // TEMP DEBUG: отслеживаем, что читаем при загрузке упражнения.
+    console.log('[CodeRunner:draft] load', {
+      exerciseId,
+      key: storageKey,
+      hasDraft: storedDraft !== null,
+      length: storedDraft?.length ?? 0,
+    });
     const cached = cacheRef.current[exerciseId];
-    if (cached) {
+    if (storedDraft !== null) {
+      setCode(storedDraft);
+      setResult(cached?.result ?? null);
+    } else if (cached) {
       setCode(cached.code);
       setResult(cached.result);
     } else {
@@ -79,6 +140,7 @@ export default function CodeRunner({
     }
     setLoading(false);
     prevExerciseIdRef.current = exerciseId;
+    hasMountedRef.current = true;
   }, [exerciseId, starterCode]);
 
   useEffect(() => {
@@ -219,6 +281,31 @@ export default function CodeRunner({
   const handleReset = () => {
     setCode(starterCode);
     setResult(null);
+    if (typeof window !== 'undefined') {
+      // TEMP DEBUG: явная очистка draft кнопкой "сброс".
+      console.log('[CodeRunner:draft] reset', {
+        exerciseId,
+        key: `${CODE_DRAFT_KEY_PREFIX}${exerciseId}`,
+      });
+      window.localStorage.removeItem(`${CODE_DRAFT_KEY_PREFIX}${exerciseId}`);
+    }
+  };
+
+  const handleCodeChange = (val: string | undefined) => {
+    const nextCode = val || '';
+    setCode(nextCode);
+    if (typeof window !== 'undefined') {
+      // TEMP DEBUG: сохранение draft во время ввода.
+      console.log('[CodeRunner:draft] save-on-change', {
+        exerciseId,
+        key: `${CODE_DRAFT_KEY_PREFIX}${exerciseId}`,
+        length: nextCode.length,
+      });
+      window.localStorage.setItem(
+        `${CODE_DRAFT_KEY_PREFIX}${exerciseId}`,
+        nextCode,
+      );
+    }
   };
 
   const visualPassed =
@@ -278,7 +365,7 @@ export default function CodeRunner({
           language="python"
           theme={mode === 'dark' ? 'dark-custom' : 'light-custom'}
           value={code}
-          onChange={(val) => setCode(val || '')}
+          onChange={handleCodeChange}
           options={{
             fontSize: 14,
             minimap: { enabled: false },
@@ -296,24 +383,55 @@ export default function CodeRunner({
       {/* Кнопка запуска */}
       <div className="flex justify-end px-4 pb-4 pt-4 bg-[var(--color-surface)]">
         <button
+          type="button"
           onClick={handleRun}
           disabled={loading}
-          className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border px-3 py-2 font-mono text-sm font-semibold transition-all ${
+          className={`group relative inline-block rounded-2xl p-px text-white transition-all duration-300 ease-in-out active:duration-0 ${
             loading
-              ? 'border-[var(--color-border)] bg-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed'
-              : 'border-[var(--color-brand)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_8px_18px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 hover:border-[var(--color-brand)]'
+              ? 'cursor-not-allowed opacity-80'
+              : 'cursor-pointer hover:scale-105 active:scale-95'
+          } ${
+            mode === 'dark'
+              ? 'bg-neutral-900 hover:shadow-[0_10px_22px_rgba(16,185,129,0.35)]'
+              : 'bg-neutral-800 hover:shadow-[0_10px_22px_rgba(16,185,129,0.22)]'
           }`}
         >
           <span
-            className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] ${
-              loading
-                ? 'bg-[var(--color-surface)] text-[var(--color-text-muted)]'
-                : 'bg-[var(--color-brand)] text-white'
+            className={`pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-sky-600 p-[2px] transition-opacity duration-500 ${
+              loading ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'
+            }`}
+          />
+          <span
+            className={`relative z-10 block min-w-[126px] rounded-2xl px-3 py-2 ${
+              mode === 'dark' ? 'bg-neutral-950' : 'bg-neutral-100'
             }`}
           >
-            ▶
+            <span
+              className={`block w-full text-center text-xs font-semibold transition-all duration-500 ${
+                loading
+                  ? 'text-[var(--color-text-muted)]'
+                  : mode === 'dark'
+                    ? 'text-white group-hover:text-emerald-300'
+                    : 'text-black group-hover:text-emerald-700'
+              }`}
+            >
+              {loading ? 'Запускаем...' : 'Запустить'}
+            </span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className={`absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 transition-all duration-500 ${
+                loading
+                  ? 'text-[var(--color-text-muted)]'
+                  : mode === 'dark'
+                    ? 'text-white group-hover:translate-x-0.5 group-hover:text-emerald-300'
+                    : 'text-black group-hover:translate-x-0.5 group-hover:text-emerald-700'
+              }`}
+              aria-hidden="true"
+            >
+              <path d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z" />
+            </svg>
           </span>
-          <span>{loading ? 'Запускаем pytest...' : 'Запустить'}</span>
         </button>
       </div>
 
