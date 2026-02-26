@@ -248,7 +248,7 @@ def _run_pytest_hidden_suite(
             success_message = grader.get("success_message")
             failure_message = grader.get("failure_message")
             show_student_pytest_output = bool(
-                grader.get("show_student_pytest_output")
+                grader.get("show_student_pytest_output", True)
             )
 
             student_stdout = ""
