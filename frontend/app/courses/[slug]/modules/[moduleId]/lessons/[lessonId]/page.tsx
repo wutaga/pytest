@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Quiz from '../../../../../../components/Quiz';
@@ -92,6 +92,15 @@ export default function LessonPage() {
   const [completedExerciseIds, setCompletedExerciseIds] = useState<number[]>([]);
   const [theoryXpToast, setTheoryXpToast] = useState<number | null>(null);
 
+  const loadLessonProgress = useCallback(async (): Promise<LessonProgress | null> => {
+    if (!lessonId) return null;
+    const progressRes = await fetch(`${API_BASE}/api/lessons/${lessonId}/progress`, {
+      credentials: 'include',
+    });
+    if (!progressRes.ok) return null;
+    return (await progressRes.json()) as LessonProgress;
+  }, [lessonId]);
+
   useEffect(() => {
     if (!slug || !moduleId || !lessonId) return;
 
@@ -105,9 +114,7 @@ export default function LessonPage() {
             credentials: 'include',
           }),
         ]);
-        const progressRes = await fetch(`${API_BASE}/api/lessons/${lessonId}/progress`, {
-          credentials: 'include',
-        });
+        const progressData = await loadLessonProgress();
 
         const lessonData = await lessonRes.json();
         if (!lessonRes.ok) {
@@ -120,10 +127,6 @@ export default function LessonPage() {
             moduleResData?.detail || 'Не удалось загрузить модуль',
           );
         }
-        const progressData: LessonProgress | null = progressRes.ok
-          ? ((await progressRes.json()) as LessonProgress)
-          : null;
-
         const normalizedLesson: Lesson = {
           id: lessonData.id,
           title: lessonData.title,
@@ -161,7 +164,7 @@ export default function LessonPage() {
     };
 
     void fetchLesson();
-  }, [slug, moduleId, lessonId, refresh]);
+  }, [slug, moduleId, lessonId, refresh, loadLessonProgress]);
 
   useEffect(() => {
     if (!lesson?.id) {
@@ -221,10 +224,14 @@ export default function LessonPage() {
       ? lesson.exercises[Math.min(activeExerciseIndex, lesson.exercises.length - 1)]
       : null;
 
-  const handleExerciseCompleted = (exerciseId: number) => {
+  const handleExerciseCompleted = async (exerciseId: number) => {
     setCompletedExerciseIds((prev) =>
       prev.includes(exerciseId) ? prev : [...prev, exerciseId],
     );
+    const progressData = await loadLessonProgress();
+    if (progressData?.completed_exercise_ids) {
+      setCompletedExerciseIds(progressData.completed_exercise_ids);
+    }
   };
 
   if (loading) {
@@ -283,6 +290,28 @@ export default function LessonPage() {
               {lesson.title}
             </span>
           </nav>
+          <div className="mb-4 flex items-center justify-between text-sm text-[var(--color-text-muted)]">
+            {prevLesson ? (
+              <Link
+                href={`/courses/${moduleData?.course.slug}/modules/${moduleId}/lessons/${prevLesson.id}`}
+                className="hover:text-[var(--color-text)]"
+              >
+                ← Предыдущий урок
+              </Link>
+            ) : (
+              <span />
+            )}
+            {nextLesson ? (
+              <Link
+                href={`/courses/${moduleData?.course.slug}/modules/${moduleId}/lessons/${nextLesson.id}`}
+                className="hover:text-[var(--color-text)]"
+              >
+                Следующий урок →
+              </Link>
+            ) : (
+              <span />
+            )}
+          </div>
 
           {/* Контент урока */}
           {lesson.exercises.length > 0 ? (
@@ -432,35 +461,6 @@ export default function LessonPage() {
             </div>
           )}
 
-          {/* Навигация между уроками */}
-          <div className="mt-8 flex items-center gap-4">
-            {prevLesson ? (
-              <Link
-                href={`/courses/${moduleData?.course.slug}/modules/${moduleId}/lessons/${prevLesson.id}`}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold hover:bg-[var(--color-surface)]"
-              >
-                ← Урок {prevLesson.order_index + 1}
-              </Link>
-            ) : null}
-
-            <div className="flex-1" />
-
-            {nextLesson ? (
-              <Link
-                href={`/courses/${moduleData?.course.slug}/modules/${moduleId}/lessons/${nextLesson.id}`}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold hover:bg-[var(--color-surface)]"
-              >
-                Урок {nextLesson.order_index + 1} →
-              </Link>
-            ) : (
-              <Link
-                href={`/courses/${moduleData?.course.slug}`}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-sm font-semibold hover:bg-[var(--color-surface)]"
-              >
-                К курсу →
-              </Link>
-            )}
-          </div>
         </div>
       </main>
     </div>
