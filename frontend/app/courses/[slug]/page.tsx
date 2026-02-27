@@ -32,25 +32,48 @@ type Course = {
   }>
 }
 
+type CourseProgress = {
+  course_id: number
+  course_slug: string
+  lessons_total: number
+  lessons_completed: number
+  exercises_total: number
+  exercises_completed: number
+  modules: Array<{
+    module_id: number
+    locked: boolean
+    lock_reason?: string | null
+    lessons_total: number
+    lessons_completed: number
+    exercises_total: number
+    exercises_completed: number
+  }>
+}
+
 export default function CoursePage() {
   const params = useParams<{ slug: string }>()
   const slug = params?.slug
   const [course, setCourse] = useState<Course | null>(null)
+  const [progress, setProgress] = useState<CourseProgress | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!slug) return
 
-    fetch(`${API_BASE}/api/courses/${slug}`, { credentials: 'include' })
-      .then(async (response) => {
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data?.detail || 'Не удалось загрузить курс')
+    Promise.all([
+      fetch(`${API_BASE}/api/courses/${slug}`, { credentials: 'include' }),
+      fetch(`${API_BASE}/api/courses/${slug}/progress`, { credentials: 'include' }),
+    ])
+      .then(async ([courseRes, progressRes]) => {
+        const courseData = await courseRes.json()
+        if (!courseRes.ok) {
+          throw new Error(courseData?.detail || 'Не удалось загрузить курс')
         }
-        return data as Course
+        const progressData = progressRes.ok ? await progressRes.json() : null
+        setCourse(courseData as Course)
+        setProgress((progressData ?? null) as CourseProgress | null)
       })
-      .then((data) => setCourse(data))
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }, [slug])
@@ -78,11 +101,21 @@ export default function CoursePage() {
               <p className="mb-6 text-sm text-[var(--color-text-muted)] md:mb-8 md:text-base">
                 {course.description}
               </p>
+              {progress ? (
+                <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-xs font-mono text-[var(--color-text-muted)]">
+                  Прогресс курса: уроки {progress.lessons_completed}/{progress.lessons_total} · задания {progress.exercises_completed}/{progress.exercises_total}
+                </div>
+              ) : null}
               <div className="mb-6 grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3">
                 {course.modules.map((module) => {
-                  const completedLessons = module.lessons.filter(
-                    (lesson) => lesson.lesson_completed,
-                  ).length
+                  const moduleProgress = progress?.modules.find(
+                    (item) => item.module_id === module.id,
+                  )
+                  const completedLessons =
+                    moduleProgress?.lessons_completed ??
+                    module.lessons.filter((lesson) => lesson.lesson_completed).length
+                  const lessonsTotal =
+                    moduleProgress?.lessons_total ?? module.lessons.length
                   return (
                   <Link
                     key={module.id}
@@ -111,7 +144,7 @@ export default function CoursePage() {
                           {module.title}
                         </h2>
                         <p className="mt-1 text-xs text-white/90">
-                          Уроков {completedLessons}/{module.lessons.length}
+                          Уроков {completedLessons}/{lessonsTotal}
                         </p>
                       </div>
                     </div>
