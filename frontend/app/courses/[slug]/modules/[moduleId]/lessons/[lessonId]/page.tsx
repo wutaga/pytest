@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Quiz from '../../../../../../components/Quiz';
+import GapFill from '../../../../../../components/GapFill';
+import TerminalCommand from '../../../../../../components/TerminalCommand';
 import TheoryRenderer from '../../../../../../components/TheoryRenderer';
 import AppHeader from '../../../../../../components/AppHeader';
 import CodeRunner from '../../../../../../components/CodeRunner';
@@ -15,14 +17,19 @@ const ACTIVE_EXERCISE_KEY_PREFIX = 'devdrill:lesson:active-exercise:';
 interface Exercise {
   id: number;
   type: string;
-  content: {
-    question: string;
-    options: string[];
-    correct: string;
-    explanation: string;
-    task: string;
-    starter_code: string;
-  };
+    content: {
+      question: string;
+      options: string[];
+      correct: string;
+      explanation: string;
+      answer: string;
+      hint: string;
+      task: string;
+      starter_code: string;
+      project_tree?: string;
+      prompt?: string;
+      placeholder?: string;
+    };
   xp_reward: number;
 }
 
@@ -186,6 +193,10 @@ export default function LessonPage() {
   // Навигация между уроками
   const currentLessonIndex =
     moduleData?.lessons.findIndex((l) => l.id === lessonId) ?? -1;
+  const currentLessonNumber =
+    currentLessonIndex >= 0
+      ? (moduleData?.lessons[currentLessonIndex].order_index ?? currentLessonIndex) + 1
+      : null;
   const prevLesson =
     currentLessonIndex > 0 ? moduleData?.lessons[currentLessonIndex - 1] : null;
   const nextLesson =
@@ -256,13 +267,11 @@ export default function LessonPage() {
               {moduleData?.title}
             </Link>
             <span className="mx-2">/</span>
-            <span className="text-[var(--color-text)]">{lesson.title}</span>
+            <span className="text-[var(--color-text)]">
+              {currentLessonNumber ? `Урок ${currentLessonNumber} — ` : ''}
+              {lesson.title}
+            </span>
           </nav>
-
-          {/* Заголовок урока */}
-          <h1 className="mb-6 text-2xl font-bold md:text-3xl">
-            {lesson.title}
-          </h1>
 
           {/* Контент урока */}
           {lesson.exercises.length > 0 ? (
@@ -281,49 +290,58 @@ export default function LessonPage() {
                   <div className="text-xs font-mono uppercase tracking-widest text-[var(--color-brand)]">
                     Задания
                   </div>
-                  <div className="text-xs font-mono text-[var(--color-text-muted)]">
+                  <span className="text-xs font-mono text-[var(--color-text-muted)]">
                     {activeExerciseIndex + 1}/{lesson.exercises.length}
-                  </div>
+                  </span>
                 </div>
 
-                <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2">
-                  {lesson.exercises.map((exercise, index) => {
-                    const isActive = index === activeExerciseIndex;
-                    const isCompleted = completedExerciseIds.includes(exercise.id);
-                    return (
-                      <button
-                        key={exercise.id}
-                        onClick={() => setActiveExerciseIndex(index)}
-                        className={`relative inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-mono font-semibold transition-all ${
-                          isActive
-                            ? isCompleted
-                              ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)] ring-2 ring-emerald-400/80 ring-offset-1 ring-offset-[var(--color-surface)]'
-                              : 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)]'
-                            : isCompleted
-                              ? 'border-[var(--color-success)] bg-[var(--color-success-bg)] text-[var(--color-success)]'
-                              : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text-muted)] hover:border-[var(--color-brand)] hover:text-[var(--color-text)]'
-                        }`}
-                        title={
-                          isCompleted
-                            ? `Задание ${index + 1} (выполнено)`
-                            : `Задание ${index + 1}`
-                        }
-                      >
-                        {index + 1}
-                        {isCompleted ? (
-                          <span className="absolute -right-1 -top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] leading-none text-white">
-                            ✓
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                <div className="mb-4 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {lesson.exercises.map((exercise, index) => {
+                      const isActive = index === activeExerciseIndex;
+                      const isCompleted = completedExerciseIds.includes(exercise.id);
+                      return (
+                        <button
+                          key={exercise.id}
+                          onClick={() => setActiveExerciseIndex(index)}
+                          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-sm font-mono font-semibold transition-colors ${
+                            isActive && isCompleted
+                              ? 'border-emerald-500 bg-emerald-500 text-white'
+                              : isActive
+                                ? 'border-[var(--color-brand)]/55 bg-[var(--color-brand)]/22 text-[var(--color-brand)]'
+                                : isCompleted
+                                  ? 'border-emerald-500/55 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                  : 'border-[var(--color-border)] bg-transparent text-[var(--color-text-muted)] hover:border-[var(--color-brand)]/35 hover:text-[var(--color-text)]'
+                          }`}
+                          title={
+                            isCompleted
+                              ? `Задание ${index + 1} (выполнено)`
+                              : `Задание ${index + 1}`
+                          }
+                        >
+                          {index + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-4">
                   {activeExercise ? (
                     activeExercise.type === 'quiz' ? (
                       <Quiz
+                        key={activeExercise.id}
+                        exercise={activeExercise}
+                        onCompleted={handleExerciseCompleted}
+                      />
+                    ) : activeExercise.type === 'gap_fill' ? (
+                      <GapFill
+                        key={activeExercise.id}
+                        exercise={activeExercise}
+                        onCompleted={handleExerciseCompleted}
+                      />
+                    ) : activeExercise.type === 'terminal_command' ? (
+                      <TerminalCommand
                         key={activeExercise.id}
                         exercise={activeExercise}
                         onCompleted={handleExerciseCompleted}

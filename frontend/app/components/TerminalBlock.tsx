@@ -12,7 +12,7 @@ export default function TerminalBlock({ lines, speed = 40 }: TerminalBlockProps)
   const [currentLine, setCurrentLine] = useState(0)
   const [currentChar, setCurrentChar] = useState(0)
   const [done, setDone] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (done) return
@@ -43,7 +43,8 @@ export default function TerminalBlock({ lines, speed = 40 }: TerminalBlockProps)
   }, [currentLine, currentChar, done, lines, speed])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!contentRef.current) return
+    contentRef.current.scrollTop = contentRef.current.scrollHeight
   }, [displayed])
 
   const getLineStyle = (line: string) => {
@@ -85,19 +86,21 @@ export default function TerminalBlock({ lines, speed = 40 }: TerminalBlockProps)
       </div>
 
       {/* Контент */}
-      <div className="p-4 font-mono text-sm min-h-[80px]">
+      <div
+        ref={contentRef}
+        className="h-44 overflow-y-auto p-4 font-mono text-sm"
+      >
         {displayed.map((line, i) => (
           <div key={i} className={`leading-relaxed ${getLineStyle(lines[i])}`}>
             {line}
             {i === currentLine && !done && (
-              <span className="animate-pulse">▋</span>
+              <span className="animate-pulse text-[var(--terminal-cursor)]">▋</span>
             )}
           </div>
         ))}
         {!done && displayed.length === 0 && (
-          <span className="animate-pulse text-[var(--color-brand)]">▋</span>
+          <span className="animate-pulse text-[var(--terminal-cursor)]">▋</span>
         )}
-        <div ref={bottomRef} />
       </div>
 
     </div>

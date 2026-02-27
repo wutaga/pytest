@@ -75,9 +75,12 @@ export default function CodeRunner({
         })
         .join(' ');
 
-      // Monaco в dev-режиме часто логирует отменённые операции как ERR Canceled.
-      // Для UX это шум: подавляем только этот конкретный кейс.
-      if (text.includes('ERR Canceled: Canceled') || text.includes('Canceled: Canceled')) {
+      // Monaco в dev-режиме может шуметь отменами и init-error при блокировке CDN.
+      if (
+        text.includes('ERR Canceled: Canceled') ||
+        text.includes('Canceled: Canceled') ||
+        text.includes('Monaco initialization: error')
+      ) {
         return;
       }
       originalConsoleError(...args);
@@ -99,12 +102,6 @@ export default function CodeRunner({
     const prevExerciseId = prevExerciseIdRef.current;
     const shouldPersistPrevious = hasMountedRef.current && prevExerciseId !== exerciseId;
     if (typeof window !== 'undefined' && shouldPersistPrevious) {
-      // TEMP DEBUG: отслеживаем, что сохраняем перед переключением упражнения.
-      console.log('[CodeRunner:draft] save-on-switch', {
-        prevExerciseId,
-        key: `${CODE_DRAFT_KEY_PREFIX}${prevExerciseId}`,
-        length: codeRef.current.length,
-      });
       window.localStorage.setItem(
         `${CODE_DRAFT_KEY_PREFIX}${prevExerciseId}`,
         codeRef.current,
@@ -120,13 +117,6 @@ export default function CodeRunner({
       typeof window !== 'undefined'
         ? window.localStorage.getItem(storageKey)
         : null;
-    // TEMP DEBUG: отслеживаем, что читаем при загрузке упражнения.
-    console.log('[CodeRunner:draft] load', {
-      exerciseId,
-      key: storageKey,
-      hasDraft: storedDraft !== null,
-      length: storedDraft?.length ?? 0,
-    });
     const cached = cacheRef.current[exerciseId];
     if (storedDraft !== null) {
       setCode(storedDraft);
@@ -282,11 +272,6 @@ export default function CodeRunner({
     setCode(starterCode);
     setResult(null);
     if (typeof window !== 'undefined') {
-      // TEMP DEBUG: явная очистка draft кнопкой "сброс".
-      console.log('[CodeRunner:draft] reset', {
-        exerciseId,
-        key: `${CODE_DRAFT_KEY_PREFIX}${exerciseId}`,
-      });
       window.localStorage.removeItem(`${CODE_DRAFT_KEY_PREFIX}${exerciseId}`);
     }
   };
@@ -295,12 +280,6 @@ export default function CodeRunner({
     const nextCode = val || '';
     setCode(nextCode);
     if (typeof window !== 'undefined') {
-      // TEMP DEBUG: сохранение draft во время ввода.
-      console.log('[CodeRunner:draft] save-on-change', {
-        exerciseId,
-        key: `${CODE_DRAFT_KEY_PREFIX}${exerciseId}`,
-        length: nextCode.length,
-      });
       window.localStorage.setItem(
         `${CODE_DRAFT_KEY_PREFIX}${exerciseId}`,
         nextCode,
