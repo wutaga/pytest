@@ -14,6 +14,7 @@ type ModulePayload = {
   order_index: number
   is_free: boolean
   locked: boolean
+  lock_reason?: string | null
   course: {
     id: number
     slug: string
@@ -23,6 +24,19 @@ type ModulePayload = {
     id: number
     title: string
     order_index: number
+    lesson_completed: boolean
+  }>
+}
+
+type CourseProgress = {
+  modules: Array<{
+    module_id: number
+    locked: boolean
+    lock_reason?: string | null
+    lessons_total: number
+    lessons_completed: number
+    exercises_total: number
+    exercises_completed: number
   }>
 }
 
@@ -32,21 +46,31 @@ export default function ModulePage() {
   const moduleId = params?.moduleId
 
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null)
+  const [moduleProgress, setModuleProgress] = useState<CourseProgress['modules'][number] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!slug || !moduleId) return
 
-    fetch(`${API_BASE}/api/courses/${slug}/modules/${moduleId}`, { credentials: 'include' })
-      .then(async (response) => {
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data?.detail || 'Не удалось загрузить модуль')
+    Promise.all([
+      fetch(`${API_BASE}/api/courses/${slug}/modules/${moduleId}`, { credentials: 'include' }),
+      fetch(`${API_BASE}/api/courses/${slug}/progress`, { credentials: 'include' }),
+    ])
+      .then(async ([moduleRes, progressRes]) => {
+        const moduleResData = await moduleRes.json()
+        if (!moduleRes.ok) {
+          throw new Error(moduleResData?.detail || 'Не удалось загрузить модуль')
         }
-        return data as ModulePayload
+        const progressData: CourseProgress | null = progressRes.ok
+          ? ((await progressRes.json()) as CourseProgress)
+          : null
+
+        setModuleData(moduleResData as ModulePayload)
+        const targetModuleId = Number(moduleId)
+        const progressRow = progressData?.modules.find((m) => m.module_id === targetModuleId) ?? null
+        setModuleProgress(progressRow)
       })
-      .then((data) => setModuleData(data))
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }, [slug, moduleId])
@@ -55,7 +79,7 @@ export default function ModulePage() {
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
       <AppHeader />
       <main className="px-4 py-6 md:px-6 md:py-8">
-        <div className="mx-auto max-w-6xl">
+        <div className="w-full">
           {loading && (
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]">
               Загружаем модуль...
@@ -74,27 +98,45 @@ export default function ModulePage() {
               <p className="mb-6 text-sm text-[var(--color-text-muted)] md:mb-8 md:text-base">
                 Курс: {moduleData.course.title}
               </p>
+              {moduleProgress ? (
+                <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-xs font-mono text-[var(--color-text-muted)]">
+                  Прогресс модуля: уроки {moduleProgress.lessons_completed}/{moduleProgress.lessons_total} · задания {moduleProgress.exercises_completed}/{moduleProgress.exercises_total}
+                </div>
+              ) : null}
 
               {moduleData.locked ? (
                 <div className="mb-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
                   <div className="mb-2 text-3xl">🔒</div>
                   <h2 className="mb-2 text-xl font-semibold">Модуль закрыт</h2>
                   <p className="text-sm text-[var(--color-text-muted)]">
-                    Для доступа к этому модулю нужна подписка или покупка курса.
+                    Для доступа к этому модулю нужно купить курс.
                   </p>
                 </div>
               ) : (
-                <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="mb-6 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
                   {moduleData.lessons.map((lesson) => (
                     <Link
                       key={lesson.id}
                       href={`/courses/${moduleData.course.slug}/modules/${moduleData.id}/lessons/${lesson.id}`}
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:bg-[var(--color-surface)]/80 hover:border-[var(--color-brand)]"
+                      className="group rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[0_6px_16px_rgba(0,0,0,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-brand)] hover:shadow-[0_10px_22px_rgba(0,0,0,0.12)]"
                     >
-                      <h3 className="text-base font-semibold">{lesson.title}</h3>
-                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                        Перейти к уроку
-                      </p>
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-[10px] font-mono text-[var(--color-text-muted)]">
+                          Урок {lesson.order_index + 1}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                            lesson.lesson_completed
+                              ? 'bg-emerald-500/15 text-emerald-600'
+                              : 'bg-[var(--color-bg)] text-[var(--color-text-muted)]'
+                          }`}
+                        >
+                          {lesson.lesson_completed ? 'Пройден' : 'Не пройден'}
+                        </span>
+                      </div>
+                      <h3 className="line-clamp-2 min-h-[40px] text-sm font-semibold md:text-[15px]">
+                        {lesson.title}
+                      </h3>
                     </Link>
                   ))}
                 </div>

@@ -13,7 +13,7 @@ export default function AppHeader({ onLoginClick }: AppHeaderProps) {
 
   return (
     <header className="border-b border-[var(--color-border)] px-4 py-4 md:px-6">
-      <div className="mx-auto flex max-w-6xl items-center justify-between">
+      <div className="flex items-center justify-between">
         <Link href="/" className="font-mono text-lg font-bold text-[var(--color-brand)]">
           DevDrill
         </Link>
