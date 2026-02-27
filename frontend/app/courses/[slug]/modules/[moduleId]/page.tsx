@@ -28,27 +28,49 @@ type ModulePayload = {
   }>
 }
 
+type CourseProgress = {
+  modules: Array<{
+    module_id: number
+    locked: boolean
+    lock_reason?: string | null
+    lessons_total: number
+    lessons_completed: number
+    exercises_total: number
+    exercises_completed: number
+  }>
+}
+
 export default function ModulePage() {
   const params = useParams<{ slug: string; moduleId: string }>()
   const slug = params?.slug
   const moduleId = params?.moduleId
 
   const [moduleData, setModuleData] = useState<ModulePayload | null>(null)
+  const [moduleProgress, setModuleProgress] = useState<CourseProgress['modules'][number] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!slug || !moduleId) return
 
-    fetch(`${API_BASE}/api/courses/${slug}/modules/${moduleId}`, { credentials: 'include' })
-      .then(async (response) => {
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data?.detail || 'Не удалось загрузить модуль')
+    Promise.all([
+      fetch(`${API_BASE}/api/courses/${slug}/modules/${moduleId}`, { credentials: 'include' }),
+      fetch(`${API_BASE}/api/courses/${slug}/progress`, { credentials: 'include' }),
+    ])
+      .then(async ([moduleRes, progressRes]) => {
+        const moduleResData = await moduleRes.json()
+        if (!moduleRes.ok) {
+          throw new Error(moduleResData?.detail || 'Не удалось загрузить модуль')
         }
-        return data as ModulePayload
+        const progressData: CourseProgress | null = progressRes.ok
+          ? ((await progressRes.json()) as CourseProgress)
+          : null
+
+        setModuleData(moduleResData as ModulePayload)
+        const targetModuleId = Number(moduleId)
+        const progressRow = progressData?.modules.find((m) => m.module_id === targetModuleId) ?? null
+        setModuleProgress(progressRow)
       })
-      .then((data) => setModuleData(data))
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }, [slug, moduleId])
@@ -76,6 +98,11 @@ export default function ModulePage() {
               <p className="mb-6 text-sm text-[var(--color-text-muted)] md:mb-8 md:text-base">
                 Курс: {moduleData.course.title}
               </p>
+              {moduleProgress ? (
+                <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-xs font-mono text-[var(--color-text-muted)]">
+                  Прогресс модуля: уроки {moduleProgress.lessons_completed}/{moduleProgress.lessons_total} · задания {moduleProgress.exercises_completed}/{moduleProgress.exercises_total}
+                </div>
+              ) : null}
 
               {moduleData.locked ? (
                 <div className="mb-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
