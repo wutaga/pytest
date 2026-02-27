@@ -6,9 +6,9 @@ from app.database import get_db
 from app.models.content import Lesson, Exercise
 from app.models.gamification import UserProgress
 from app.api.deps import get_current_user, get_optional_user
+from app.services.access import can_access_module, has_course_purchase
 from app.services.lesson_progress import (
     complete_lesson_if_eligible,
-    is_lesson_completed,
     is_lesson_completed_for_user,
 )
 
@@ -43,6 +43,39 @@ class LessonProgressResponse(BaseModel):
     lesson_completed: bool
 
 
+def _requires_course_purchase(exercise: Exercise) -> bool:
+    content = exercise.content or {}
+    return bool(content.get("requires_course_purchase", False))
+
+
+def _is_exercise_purchase_locked(db: Session, exercise: Exercise, user, course_id: int) -> bool:
+    content = exercise.content or {}
+    requires_purchase = bool(content.get("requires_course_purchase", False))
+    if not requires_purchase:
+        return False
+    return not has_course_purchase(db, user.id if user else None, course_id)
+
+
+def _exercise_lock_reason(db: Session, exercise: Exercise, user, course_id: int) -> str | None:
+    if _is_exercise_purchase_locked(db, exercise, user, course_id):
+        return "course_purchase_required"
+    return None
+
+
+def _ensure_lesson_access(db: Session, lesson: Lesson, user) -> None:
+    module = lesson.module
+    if not module:
+        raise HTTPException(status_code=404, detail="Модуль урока не найден")
+
+    if module.is_free:
+        return
+
+    if can_access_module(db, user.id if user else None, module):
+        return
+
+    raise HTTPException(status_code=403, detail="Урок недоступен без покупки курса")
+
+
 # --- Роуты ---
 
 @router.get("/lessons/{lesson_id}")
@@ -54,9 +87,11 @@ def get_lesson(
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
+    _ensure_lesson_access(db, lesson, current_user)
 
     lesson_completed = False
     xp_earned_on_open = 0
+    course_id = lesson.module.course_id if lesson.module else None
     if current_user:
         lesson_completed = is_lesson_completed_for_user(db, current_user.id, lesson_id)
         if not lesson_completed:
@@ -82,6 +117,17 @@ def get_lesson(
                 "type": ex.type,
                 "content": ex.content,
                 "xp_reward": ex.xp_reward,
+                "locked": (
+                    _is_exercise_purchase_locked(db, ex, current_user, course_id)
+                    if course_id is not None
+                    else False
+                ),
+                "requires_course_purchase": _requires_course_purchase(ex),
+                "lock_reason": (
+                    _exercise_lock_reason(db, ex, current_user, course_id)
+                    if course_id is not None
+                    else None
+                ),
             }
             for ex in sorted(
                 lesson.exercises,
@@ -97,12 +143,13 @@ def get_lesson_progress(
     db: Session = Depends(get_db),
     current_user=Depends(get_optional_user),
 ):
-    if not current_user:
-        return LessonProgressResponse(completed_exercise_ids=[], lesson_completed=False)
-
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
+    _ensure_lesson_access(db, lesson, current_user)
+
+    if not current_user:
+        return LessonProgressResponse(completed_exercise_ids=[], lesson_completed=False)
 
     lesson_exercise_ids = [ex.id for ex in lesson.exercises]
     if not lesson_exercise_ids:
@@ -139,6 +186,18 @@ def submit_answer(
     exercise = db.query(Exercise).filter(Exercise.id == exercise_id).first()
     if not exercise:
         raise HTTPException(status_code=404, detail="Задание не найдено")
+    lesson = db.query(Lesson).filter(Lesson.id == exercise.lesson_id).first()
+    if lesson:
+        _ensure_lesson_access(db, lesson, current_user)
+        course_id = lesson.module.course_id if lesson.module else None
+        if (
+            course_id is not None
+            and _is_exercise_purchase_locked(db, exercise, current_user, course_id)
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Задание доступно после покупки курса",
+            )
 
     # Проверяем ответ в зависимости от типа
     correct = False
@@ -205,7 +264,6 @@ def submit_answer(
     if xp_earned > 0:
         current_user.xp += xp_earned
 
-    lesson = db.query(Lesson).filter(Lesson.id == exercise.lesson_id).first()
     if lesson:
         complete_lesson_if_eligible(db, current_user, lesson)
 

@@ -15,6 +15,7 @@ from app.database import SessionLocal
 from app.models.content import Exercise, Lesson
 from app.models.gamification import UserProgress
 from app.models.user import User
+from app.services.access import has_course_purchase
 from app.services.lesson_progress import complete_lesson_if_eligible
 
 router = APIRouter()
@@ -131,6 +132,26 @@ def _load_grader(exercise_id: int) -> dict[str, Any] | None:
         content = exercise.content or {}
         grader = content.get("grader")
         return grader if isinstance(grader, dict) else None
+    finally:
+        db.close()
+
+
+def _is_code_runner_purchase_locked(user_id: int, exercise_id: int) -> bool:
+    db = SessionLocal()
+    try:
+        exercise = db.query(Exercise).filter(Exercise.id == exercise_id).first()
+        if not exercise or exercise.type != "code_runner":
+            return False
+        content = exercise.content or {}
+        if not bool(content.get("requires_course_purchase", False)):
+            return False
+
+        lesson = db.query(Lesson).filter(Lesson.id == exercise.lesson_id).first()
+        if not lesson or not lesson.module:
+            return True
+        course_id = lesson.module.course_id
+        has_purchase = has_course_purchase(db, user_id, course_id)
+        return not has_purchase
     finally:
         db.close()
 
@@ -312,6 +333,11 @@ async def run_code(request: RunCodeRequest, current_user=Depends(get_current_use
     _check_rate_limit(current_user.id)
 
     if request.exercise_id is not None:
+        if _is_code_runner_purchase_locked(current_user.id, request.exercise_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Задание доступно после покупки курса",
+            )
         grader = _load_grader(request.exercise_id)
         if grader:
             engine = grader.get("engine")

@@ -14,6 +14,7 @@ type ModulePayload = {
   order_index: number
   is_free: boolean
   locked: boolean
+  lock_reason?: string | null
   course: {
     id: number
     slug: string
@@ -81,7 +82,7 @@ export default function ModulePage() {
                   <div className="mb-2 text-3xl">🔒</div>
                   <h2 className="mb-2 text-xl font-semibold">Модуль закрыт</h2>
                   <p className="text-sm text-[var(--color-text-muted)]">
-                    Для доступа к этому модулю нужна подписка или покупка курса.
+                    Для доступа к этому модулю нужно купить курс.
                   </p>
                 </div>
               ) : (

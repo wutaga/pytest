@@ -17,6 +17,9 @@ const ACTIVE_EXERCISE_KEY_PREFIX = 'devdrill:lesson:active-exercise:';
 interface Exercise {
   id: number;
   type: string;
+  locked?: boolean;
+  requires_course_purchase?: boolean;
+  lock_reason?: string | null;
     content: {
       question: string;
       options: string[];
@@ -170,8 +173,16 @@ export default function LessonPage() {
       typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) : null;
     const parsed = raw ? Number.parseInt(raw, 10) : 0;
     const maxIndex = Math.max(0, lesson.exercises.length - 1);
-    const safeIndex =
+    const requestedIndex =
       Number.isFinite(parsed) && parsed >= 0 ? Math.min(parsed, maxIndex) : 0;
+    const requestedExercise = lesson.exercises[requestedIndex];
+    const fallbackOpenIndex = lesson.exercises.findIndex((ex) => !ex.locked);
+    const safeIndex =
+      requestedExercise && !requestedExercise.locked
+        ? requestedIndex
+        : fallbackOpenIndex >= 0
+          ? fallbackOpenIndex
+          : 0;
     setActiveExerciseIndex(safeIndex);
     setTheoryXpToast(null);
   }, [lesson?.id, lesson?.exercises.length]);
@@ -290,9 +301,16 @@ export default function LessonPage() {
                   <div className="text-xs font-mono uppercase tracking-widest text-[var(--color-brand)]">
                     Задания
                   </div>
-                  <span className="text-xs font-mono text-[var(--color-text-muted)]">
-                    {activeExerciseIndex + 1}/{lesson.exercises.length}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {activeExercise?.requires_course_purchase ? (
+                      <span className="rounded-full border border-amber-500/50 bg-amber-500/15 px-2 py-0.5 text-[10px] font-mono font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                        Покупка курса
+                      </span>
+                    ) : null}
+                    <span className="text-xs font-mono text-[var(--color-text-muted)]">
+                      {activeExerciseIndex + 1}/{lesson.exercises.length}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mb-4 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5">
@@ -300,12 +318,15 @@ export default function LessonPage() {
                     {lesson.exercises.map((exercise, index) => {
                       const isActive = index === activeExerciseIndex;
                       const isCompleted = completedExerciseIds.includes(exercise.id);
+                      const isLocked = Boolean(exercise.locked);
                       return (
                         <button
                           key={exercise.id}
                           onClick={() => setActiveExerciseIndex(index)}
                           className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-sm font-mono font-semibold transition-colors ${
-                            isActive && isCompleted
+                            isLocked
+                              ? 'border-amber-500/40 bg-amber-500/10 text-amber-500'
+                              : isActive && isCompleted
                               ? 'border-emerald-500 bg-emerald-500 text-white'
                               : isActive
                                 ? 'border-[var(--color-brand)]/55 bg-[var(--color-brand)]/22 text-[var(--color-brand)]'
@@ -314,12 +335,14 @@ export default function LessonPage() {
                                   : 'border-[var(--color-border)] bg-transparent text-[var(--color-text-muted)] hover:border-[var(--color-brand)]/35 hover:text-[var(--color-text)]'
                           }`}
                           title={
-                            isCompleted
+                            isLocked
+                              ? `Задание ${index + 1} (доступно после покупки курса)`
+                              : isCompleted
                               ? `Задание ${index + 1} (выполнено)`
                               : `Задание ${index + 1}`
                           }
                         >
-                          {index + 1}
+                          {isLocked ? '🔒' : index + 1}
                         </button>
                       );
                     })}
@@ -328,7 +351,13 @@ export default function LessonPage() {
 
                 <div className="flex flex-col gap-4">
                   {activeExercise ? (
-                    activeExercise.type === 'quiz' ? (
+                    activeExercise.locked ? (
+                      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-600 dark:text-amber-400">
+                        {activeExercise.lock_reason === 'course_purchase_required'
+                          ? 'Это задание открывается после покупки курса.'
+                          : 'Это задание сейчас недоступно.'}
+                      </div>
+                    ) : activeExercise.type === 'quiz' ? (
                       <Quiz
                         key={activeExercise.id}
                         exercise={activeExercise}
